@@ -4,7 +4,9 @@ struct AIMButtonStyle: ButtonStyle {
     var isDefault = false
 
     func makeBody(configuration: Configuration) -> some View {
-        let label = configuration.label
+        // One view whose bevel flips when pressed. Swapping in a different view mid-press
+        // (if/else on isPressed) cancels the click before mouse-up.
+        configuration.label
             .font(AIMFonts.label)
             .foregroundStyle(AIMColors.text)
             .padding(.horizontal, 10)
@@ -12,11 +14,10 @@ struct AIMButtonStyle: ButtonStyle {
             .frame(minWidth: 60)
             .background(AIMColors.window)
             .offset(x: configuration.isPressed ? 1 : 0, y: configuration.isPressed ? 1 : 0)
-        Group {
-            if configuration.isPressed { label.bevelSunken() } else { label.bevelRaised() }
-        }
-        .padding(isDefault ? 1 : 0)
-        .overlay(isDefault ? Rectangle().stroke(Color.black, lineWidth: 1) : nil)
+            .modifier(configuration.isPressed ? Bevel.sunken : Bevel.raised)
+            .padding(isDefault ? 1 : 0)
+            .overlay(Rectangle().stroke(Color.black, lineWidth: isDefault ? 1 : 0))
+            .contentShape(Rectangle())
     }
 }
 

@@ -26,13 +26,18 @@ struct Bevel: ViewModifier {
     }
 }
 
+extension Bevel {
+    static let raised = Bevel(outerTL: AIMColors.highlight, outerBR: AIMColors.darkShadow, innerTL: AIMColors.light, innerBR: AIMColors.shadow)
+    static let sunken = Bevel(outerTL: AIMColors.shadow, outerBR: AIMColors.highlight, innerTL: AIMColors.darkShadow, innerBR: AIMColors.light)
+}
+
 extension View {
     func bevelRaised() -> some View {
-        modifier(Bevel(outerTL: AIMColors.highlight, outerBR: AIMColors.darkShadow, innerTL: AIMColors.light, innerBR: AIMColors.shadow))
+        modifier(Bevel.raised)
     }
 
     func bevelSunken() -> some View {
-        modifier(Bevel(outerTL: AIMColors.shadow, outerBR: AIMColors.highlight, innerTL: AIMColors.darkShadow, innerBR: AIMColors.light))
+        modifier(Bevel.sunken)
     }
 
     /// A one-pixel etched line group frame, as used around AIM's panels.

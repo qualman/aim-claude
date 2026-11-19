@@ -22,6 +22,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             for b in app.state.buddies { windows.openChat(b.id) }
         }
         RenderMode.scheduleSnapshotIfRequested()
+        scheduleTransitionCheckIfRequested(app: app)
+    }
+
+    /// Dev check: AIM_TRANSITION_CHECK=<file> runs Sign On → Buddy List → Sign Off → Sign On the way the
+    /// buttons do, then writes <file> and quits. If a transition quits the app, the file never appears.
+    private func scheduleTransitionCheckIfRequested(app: AppController) {
+        guard let marker = ProcessInfo.processInfo.environment["AIM_TRANSITION_CHECK"] else { return }
+        if ProcessInfo.processInfo.environment["AIM_TRANSITION_KEY"] == "1" {
+            // Press Return in the Sign On window: the real event path into the button's default-action shortcut.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                guard let w = NSApp.windows.first(where: { $0.title == "Sign On" }) else { return }
+                NSApp.activate()
+                w.makeKeyAndOrderFront(nil)
+                // Sign On sits bottom-right: 10pt padding, about 70x24pt.
+                let pt = NSPoint(x: w.contentLayoutRect.maxX - 45, y: 22)
+                func click(_ type: NSEvent.EventType) {
+                    if let e = NSEvent.mouseEvent(with: type, location: pt, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                  windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {
+                        NSApp.sendEvent(e)
+                    }
+                }
+                // Hold the button like a person does, so the pressed state renders before release.
+                click(.leftMouseDown)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { click(.leftMouseUp) }
+            }
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                if app.signOn(screenName: "TransitionCheck") { self.windows.showBuddyList() }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.windows.signOff() }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            let open = NSApp.windows.filter(\.isVisible).map(\.title)
+            try? "survived; signedOn=\(app.state.signedOn); open windows: \(open)".write(toFile: marker, atomically: true, encoding: .utf8)
+            exit(0)
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) { windows.shutdown() }
