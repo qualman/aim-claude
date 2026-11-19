@@ -51,16 +51,27 @@ AIM_LIVE=1 scripts/test.sh
 
 ## Skin (art, sounds, fonts)
 
-This repo includes no AOL artwork or sounds. If you have your own copies,
-install them into the app's skin folder:
+This repo includes no AOL artwork or sounds. If you have your own copies, lay them
+out in a folder like this:
+
+```
+aim_assets/
+  icons/   send.png, send-hover.png, signon-disabled.png, buddylist-im.png, ...
+  sounds/  BuddyIn.wav, BuddyOut.wav, received.mp3, sent.mp3
+  fonts/   *.woff2 / .woff / .ttf / .otf
+```
+
+Then install them into the app's skin folder:
 
 ```sh
 scripts/install-skin.py ~/path/to/aim_assets
 ```
 
-They're copied to `~/Library/Application Support/AIMClaude/skin`, where
-images are matched by content hash. Anything missing falls back to an
-SF Symbol or plain text, and a missing sound simply doesn't play.
+They're copied to `~/Library/Application Support/AIMClaude/skin`. The script's
+`ICONS` list has the names the app looks for. If an icon also has a
+`<name>-hover` image, the button switches to it while the pointer is over it,
+as AIM did. Anything missing falls back to an SF Symbol or plain text, and a
+missing sound simply doesn't play.
 
 ## Where data lives
 
