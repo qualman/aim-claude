@@ -13,8 +13,8 @@ final class WindowManager: NSObject, NSWindowDelegate {
     var chatWindows: [UUID: NSWindow] = [:]
     var attention: Set<UUID> = [] { didSet { refreshBuddyList() } }
     private var dialogs: [NSWindow] = []
-    /// Set by later tasks to build chat windows.
-    var makeChatWindow: ((UUID) -> NSWindow?)?
+    /// One controller per buddy, kept while the app runs so a turn survives its window closing.
+    private(set) var chats: [UUID: ChatController] = [:]
 
     init(app: AppController, skin: SkinStore) {
         self.app = app
@@ -81,11 +81,31 @@ final class WindowManager: NSObject, NSWindowDelegate {
 
     func openChat(_ id: UUID) {
         if let w = chatWindows[id] { w.makeKeyAndOrderFront(nil); return }
-        guard let w = makeChatWindow?(id) else { return }
+        guard let buddy = app.buddy(id) else { return }
+        let view = ChatView(chat: chatController(for: id)) { [weak self] in self?.app.state.screenName ?? "Me" }
+        let w = makeWindow(title: "\(buddy.screenName) - Instant Message", resizable: true, view: view)
+        w.setContentSize(NSSize(width: 440, height: 420))
+        w.setFrameAutosaveName("Chat-\(id.uuidString)")
         chatWindows[id] = w
         w.delegate = self
         w.makeKeyAndOrderFront(nil)
     }
+
+    func chatController(for id: UUID) -> ChatController {
+        if let c = chats[id] { return c }
+        let c = ChatController(buddyID: id, app: app) { [weak self] in self?.makeChannel(for: id) }
+        chats[id] = c
+        return c
+    }
+
+    private func makeChannel(for id: UUID) -> (any BuddyChanneling)? {
+        guard let buddy = app.buddy(id), let claude = app.claudePath else { return nil }
+        return BuddyChannel(buddy: buddy, claudePath: claude, mcpConfigPath: mcpConfigPath(id),
+                            launcher: SystemProcessLauncher(basePATH: basePATH))
+    }
+
+    /// Set up by the permission server; nil means no permission prompts.
+    var mcpConfigPath: (UUID) -> URL? = { _ in nil }
 
     func addBuddy() {
         let panel = NSOpenPanel()

@@ -23,7 +23,20 @@ enum RenderMode {
     }
 
     /// Later screens register here.
-    static func extraScreens(app: AppController, skin: SkinStore) -> [(String, AnyView)] { [] }
+    static func extraScreens(app: AppController, skin: SkinStore) -> [(String, AnyView)] {
+        guard let b = app.state.buddies.first else { return [] }
+        app.updateBuddy(b.id) {
+            $0.messages = [
+                ChatMessage(sender: .user, text: "hey can you look at my build script"),
+                ChatMessage(sender: .buddy, text: "Sure. The problem is on line 4:\n\n    swift build -c release\n\nshould pass --product AIMClaude."),
+                ChatMessage(sender: .system, text: "xX_Claude_Xx's Claude session was lost, so it started a new one."),
+                ChatMessage(sender: .error, text: "claude exited with status 1: boom"),
+            ]
+        }
+        let chat = ChatController(buddyID: b.id, app: app) { nil }
+        chat.apply(.activity("Reading build-app.sh"))
+        return [("chat", AnyView(ChatView(chat: chat) { "SkaterBoi99" }.frame(width: 440, height: 420)))]
+    }
 
     static func runIfRequested() {
         let args = CommandLine.arguments
