@@ -109,3 +109,14 @@ private func tempStore() -> StateStore {
         #expect(c.state.screenName == "new")
     }
 }
+
+@MainActor @Suite struct ClaudePathOverrideTests {
+    @Test func overrideIsSavedAndBlankClears() throws {
+        let store = StateStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("aim-ovr-\(UUID().uuidString)"))
+        let c = AppController(store: store, sounds: SilentSoundPlayer())
+        c.setClaudePathOverride("  /opt/claude  ")
+        #expect(try store.load().claudePathOverride == "/opt/claude")
+        c.setClaudePathOverride("   ")
+        #expect(c.state.claudePathOverride == nil)
+    }
+}

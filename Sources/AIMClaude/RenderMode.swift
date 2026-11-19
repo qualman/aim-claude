@@ -36,7 +36,26 @@ enum RenderMode {
         let chat = ChatController(buddyID: b.id, app: app) { nil }
         chat.apply(.activity("Reading build-app.sh"))
         chat.addPermission(PermissionRequest(id: UUID(), buddyID: b.id, toolName: "Bash", inputSummary: "Running: swift build -c release"))
-        return [("chat", AnyView(ChatView(chat: chat) { "SkaterBoi99" }.frame(width: 440, height: 420)))]
+        app.applyLocatorResult(.success(URL(fileURLWithPath: "/usr/local/bin/claude")))
+        return [("preferences", AnyView(PreferencesView(app: app) {})), ("chat", AnyView(ChatView(chat: chat) { "SkaterBoi99" }.frame(width: 440, height: 420)))]
+    }
+
+    /// `--snapshot <dir>`: after launch, write each visible window (with its title bar) as PNG, then quit.
+    static func scheduleSnapshotIfRequested(delay: TimeInterval = 4) {
+        let args = CommandLine.arguments
+        guard let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count else { return }
+        let dir = URL(fileURLWithPath: args[i + 1])
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            for (n, w) in NSApp.windows.filter(\.isVisible).enumerated() {
+                guard let frameView = w.contentView?.superview,
+                      let rep = frameView.bitmapImageRepForCachingDisplay(in: frameView.bounds) else { continue }
+                frameView.cacheDisplay(in: frameView.bounds, to: rep)
+                let name = "\(n)-\(w.title.replacingOccurrences(of: " ", with: "_")).png"
+                try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent(name))
+            }
+            exit(0)
+        }
     }
 
     static func runIfRequested() {

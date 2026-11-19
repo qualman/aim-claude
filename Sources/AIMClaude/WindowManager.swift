@@ -73,6 +73,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
             await MainActor.run {
                 self.basePATH = path
                 self.app.applyLocatorResult(result.mapError { $0 as any Error })
+                Log.app.notice("claude: \(self.app.claudePath?.path ?? "not found", privacy: .public)")
                 if self.app.claudeMissing {
                     self.showDialog("AIM couldn't find the claude command. Install Claude Code, or set its path in Preferences.")
                 }
@@ -182,6 +183,17 @@ final class WindowManager: NSObject, NSWindowDelegate {
         window?.makeKeyAndOrderFront(nil)
     }
 
+    private var preferencesWindow: NSWindow?
+
+    func showPreferences() {
+        if let w = preferencesWindow { w.makeKeyAndOrderFront(nil); return }
+        let view = PreferencesView(app: app) { [weak self] in self?.locateClaude() }
+        let w = makeWindow(title: "Preferences", resizable: false, view: view)
+        preferencesWindow = w
+        w.center()
+        w.makeKeyAndOrderFront(nil)
+    }
+
     func showDialog(_ message: String) {
         var window: NSWindow?
         let view = AIMDialog(message: message) { window?.close() }
@@ -195,8 +207,10 @@ final class WindowManager: NSObject, NSWindowDelegate {
         var style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable]
         if resizable { style.insert(.resizable) }
         let host = NSHostingController(rootView: AnyView(view))
+        host.sizingOptions = resizable ? [.minSize] : [.preferredContentSize]
         let w = NSWindow(contentViewController: host)
         w.styleMask = style
+        w.setContentSize(host.view.fittingSize)
         w.title = title
         w.backgroundColor = NSColor(white: 0.753, alpha: 1)
         w.isReleasedWhenClosed = false

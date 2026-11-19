@@ -76,7 +76,8 @@ public final class AppController {
     }
 
     public func setClaudePathOverride(_ path: String?) {
-        state.claudePathOverride = path.flatMap { $0.isEmpty ? nil : $0 }
+        let trimmed = path?.trimmingCharacters(in: .whitespacesAndNewlines)
+        state.claudePathOverride = (trimmed?.isEmpty ?? true) ? nil : trimmed
         save()
     }
 

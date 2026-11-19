@@ -9,6 +9,8 @@ enum MainMenu {
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: "About AIM", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(.separator())
+        item(appMenu, "Preferences…", #selector(AppDelegate.showPreferences(_:)), ",", target)
+        appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Hide AIM", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: "Quit AIM", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")

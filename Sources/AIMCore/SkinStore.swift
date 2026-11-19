@@ -48,9 +48,14 @@ public struct SilentSoundPlayer: SoundPlaying {
 }
 
 public enum AppPaths {
+    /// AIM_SUPPORT_DIR overrides the state location (used for test runs); the skin stays shared.
     public static var support: URL {
+        if let dir = ProcessInfo.processInfo.environment["AIM_SUPPORT_DIR"] { return URL(fileURLWithPath: dir) }
+        return defaultSupport
+    }
+    public static var skin: URL { defaultSupport.appendingPathComponent("skin") }
+    static var defaultSupport: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("AIMClaude")
     }
-    public static var skin: URL { support.appendingPathComponent("skin") }
 }
