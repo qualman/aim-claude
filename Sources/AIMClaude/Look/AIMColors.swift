@@ -19,9 +19,13 @@ enum AIMColors {
 }
 
 enum AIMFonts {
-    static let label = Font.custom("Verdana", size: 11)
-    static let labelBold = Font.custom("Verdana", size: 11).weight(.bold)
-    static let small = Font.custom("Verdana", size: 10)
+    /// True once the skin's MS Sans Serif is registered; otherwise Verdana stands in.
+    nonisolated(unsafe) static var hasMSSans = false
+
+    static var label: Font { hasMSSans ? .custom("MS-Sans-Serif", size: 11) : .custom("Verdana", size: 11) }
+    static var labelBold: Font { hasMSSans ? .custom("MS-Sans-Serif-Bold", size: 11) : .custom("Verdana", size: 11).weight(.bold) }
+    static var small: Font { hasMSSans ? .custom("MS-Sans-Serif", size: 10) : .custom("Verdana", size: 10) }
     static let message = Font.system(size: 12, design: .monospaced)
     static let messageBold = Font.system(size: 12, design: .monospaced).weight(.bold)
+    static let link = Color(red: 0, green: 0, blue: 0.8)
 }

@@ -34,3 +34,31 @@ import Testing
         #expect(SoundCue.goodbye.asset == .goodbye)
     }
 }
+
+@Suite struct SkinIconTests {
+    private func dir() throws -> URL {
+        let d = FileManager.default.temporaryDirectory.appendingPathComponent("aim-skin-icons-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: d.appendingPathComponent("icons"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: d.appendingPathComponent("fonts"), withIntermediateDirectories: true)
+        return d
+    }
+
+    @Test func iconFoundByName() throws {
+        let d = try dir()
+        try Data([1]).write(to: d.appendingPathComponent("icons/send.png"))
+        let s = SkinStore(directory: d)
+        #expect(s.icon("send")?.lastPathComponent == "send.png")
+        #expect(s.icon("warn") == nil)
+    }
+
+    @Test func iconNameCannotEscapeSkinFolder() throws {
+        let s = SkinStore(directory: try dir())
+        #expect(s.icon("../../etc/passwd") == nil)
+    }
+
+    @Test func fontsListsOnlyFontFiles() throws {
+        let d = try dir()
+        for f in ["a.woff2", "b.ttf", "c.otf", "notes.txt"] { try Data([1]).write(to: d.appendingPathComponent("fonts/\(f)")) }
+        #expect(SkinStore(directory: d).fonts().map(\.lastPathComponent).sorted() == ["a.woff2", "b.ttf", "c.otf"])
+    }
+}

@@ -16,8 +16,8 @@ enum RenderMode {
         return [
             ("gallery", AnyView(LookGallery())),
             ("signon", AnyView(SignOnView(app: app, skin: skin) {})),
-            ("buddylist", AnyView(BuddyListView(app: app, skin: skin, attention: [a.id], onOpenChat: { _ in },
-                                                onAddBuddy: {}, onSignOff: {}).frame(width: 230, height: 480))),
+            ("buddylist", AnyView(BuddyListView(app: app, skin: skin, attention: [a.id], actions: BuddyListActions())
+                .frame(width: 240, height: 520))),
             ("dialog", AnyView(AIMDialog(message: "AIM couldn't find the claude command. Install Claude Code, or set its path in Preferences.") {})),
         ] + extraScreens(app: app, skin: skin)
     }
@@ -37,7 +37,7 @@ enum RenderMode {
         chat.apply(.activity("Reading build-app.sh"))
         chat.addPermission(PermissionRequest(id: UUID(), buddyID: b.id, toolName: "Bash", inputSummary: "Running: swift build -c release"))
         app.applyLocatorResult(.success(URL(fileURLWithPath: "/usr/local/bin/claude")))
-        return [("preferences", AnyView(PreferencesView(app: app) {})), ("chat", AnyView(ChatView(chat: chat) { "SkaterBoi99" }.frame(width: 440, height: 420)))]
+        return [("preferences", AnyView(PreferencesView(app: app) {})), ("chat", AnyView(ChatView(chat: chat, myName: { "SkaterBoi99" }).frame(width: 440, height: 420)))]
     }
 
     /// `--snapshot <dir>`: after launch, write each visible window (with its title bar) as PNG, then quit.
@@ -61,6 +61,7 @@ enum RenderMode {
     static func runIfRequested() {
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--render"), i + 1 < args.count else { return }
+        Skin.registerFonts()
         let dir = URL(fileURLWithPath: args[i + 1])
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for (name, view) in screens {

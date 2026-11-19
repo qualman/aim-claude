@@ -22,6 +22,20 @@ public struct SkinStore: Sendable {
         let u = directory.appendingPathComponent(asset.rawValue)
         return FileManager.default.fileExists(atPath: u.path) ? u : nil
     }
+
+    /// icons/<name>.png, or nil so the caller draws its fallback. Names are plain words only.
+    public func icon(_ name: String) -> URL? {
+        guard !name.isEmpty, name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) else { return nil }
+        let u = directory.appendingPathComponent("icons/\(name).png")
+        return FileManager.default.fileExists(atPath: u.path) ? u : nil
+    }
+
+    /// Font files in fonts/, registered at launch.
+    public func fonts() -> [URL] {
+        let dir = directory.appendingPathComponent("fonts")
+        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        return files.filter { ["woff2", "woff", "ttf", "otf"].contains($0.pathExtension.lowercased()) }
+    }
 }
 
 public enum SoundCue: Sendable {

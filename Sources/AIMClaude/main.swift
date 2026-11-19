@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Each IM is its own window, as in AIM; macOS would otherwise merge them into tabs.
         NSWindow.allowsAutomaticWindowTabbing = false
+        Skin.registerFonts()
         let skin = SkinStore(directory: AppPaths.skin)
         let app = AppController(store: StateStore(directory: AppPaths.support), sounds: SoundPlayer(skin: skin))
         windows = WindowManager(app: app, skin: skin)
@@ -35,8 +36,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let w = NSApp.windows.first(where: { $0.title == "Sign On" }) else { return }
                 NSApp.activate()
                 w.makeKeyAndOrderFront(nil)
-                // Sign On sits bottom-right: 10pt padding, about 70x24pt.
-                let pt = NSPoint(x: w.contentLayoutRect.maxX - 45, y: 22)
+                // Sign On sits bottom-right, above the version line.
+                let pt = NSPoint(x: w.contentLayoutRect.maxX - 32, y: 46)
                 func click(_ type: NSEvent.EventType) {
                     if let e = NSEvent.mouseEvent(with: type, location: pt, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
                                                   windowNumber: w.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1) {

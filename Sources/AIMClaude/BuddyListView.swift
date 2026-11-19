@@ -1,88 +1,124 @@
 import AIMCore
 import SwiftUI
 
+struct BuddyListActions {
+    var openChat: (UUID) -> Void = { _ in }
+    var addBuddy: () -> Void = {}
+    var signOff: () -> Void = {}
+    var changeScreenName: () -> Void = {}
+    var preferences: () -> Void = {}
+    var getInfo: (UUID) -> Void = { _ in }
+    var about: () -> Void = {}
+}
+
 struct BuddyListView: View {
     let app: AppController
     let skin: SkinStore
-    let onOpenChat: (UUID) -> Void
-    let onAddBuddy: () -> Void
-    let onSignOff: () -> Void
     var attention: Set<UUID> = []
+    let actions: BuddyListActions
     private let selection = State<UUID?>(initialValue: nil)
     private let buddiesOpen = State(initialValue: true)
 
-    init(app: AppController, skin: SkinStore, attention: Set<UUID> = [], onOpenChat: @escaping (UUID) -> Void,
-         onAddBuddy: @escaping () -> Void, onSignOff: @escaping () -> Void) {
+    init(app: AppController, skin: SkinStore, attention: Set<UUID> = [], actions: BuddyListActions) {
         self.app = app
         self.skin = skin
         self.attention = attention
-        self.onOpenChat = onOpenChat
-        self.onAddBuddy = onAddBuddy
-        self.onSignOff = onSignOff
+        self.actions = actions
     }
+
+    private var target: UUID? { selection.wrappedValue ?? app.state.buddies.first?.id }
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            MenuStrip {
+                StripMenu(title: "MyAIM") {
+                    Button("Add Buddy…", action: actions.addBuddy)
+                    Button("Change Screen Name…", action: actions.changeScreenName)
+                    Button("Preferences…", action: actions.preferences)
+                    Divider()
+                    Button("Sign Off", action: actions.signOff)
+                }
+                StripMenu(title: "People") {
+                    Button("Send Instant Message") { if let t = target { actions.openChat(t) } }
+                        .disabled(target == nil)
+                    Button("Get Buddy Info") { if let t = target { actions.getInfo(t) } }
+                        .disabled(target == nil)
+                }
+                StripMenu(title: "Help") {
+                    Button("About AIM", action: actions.about)
+                }
+            }
+            EtchedRule()
+            banner.padding(.vertical, 6)
             tabs
             list
             toolbar
         }
         .background(AIMColors.window)
-        .frame(minWidth: 200, minHeight: 360)
+        .frame(minWidth: 210, minHeight: 380)
     }
 
-    private var header: some View {
-        HStack(spacing: 8) {
-            AIMLogo(skin: skin).frame(width: 34, height: 40)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("\(app.state.screenName ?? "")'s Buddy List").font(AIMFonts.labelBold).lineLimit(1)
-                Text("Online").font(AIMFonts.small).foregroundStyle(AIMColors.shadow)
+    private var banner: some View {
+        Group {
+            if Skin.image("buddylist-banner") != nil {
+                SkinIcon(name: "buddylist-banner")
+            } else {
+                HStack(spacing: 6) {
+                    AIMLogo(skin: skin).frame(width: 34, height: 40)
+                    Text("Instant Messenger").font(AIMFonts.labelBold).foregroundStyle(.white)
+                }
+                .padding(8)
+                .background(AIMColors.titleBlue)
             }
-            Spacer(minLength: 0)
         }
-        .padding(6)
         .frame(maxWidth: .infinity)
-        .background(LinearGradient(colors: [Color(white: 0.98), AIMColors.window], startPoint: .top, endPoint: .bottom))
-        .bevelRaised()
-        .padding(4)
     }
 
     private var tabs: some View {
-        HStack(spacing: 0) {
-            Text("Online").font(AIMFonts.labelBold).padding(.horizontal, 10).padding(.vertical, 3)
-                .background(AIMColors.window).bevelRaised()
-            Text("List Setup").font(AIMFonts.label).foregroundStyle(AIMColors.shadow)
-                .padding(.horizontal, 10).padding(.vertical, 2)
+        HStack(alignment: .bottom, spacing: 0) {
+            Text("Online").font(AIMFonts.labelBold)
+                .padding(.horizontal, 10).padding(.top, 4).padding(.bottom, 3)
+                .background(AIMColors.window)
+                .modifier(Bevel.raised)
+            Text("List Setup").font(AIMFonts.label)
+                .padding(.horizontal, 8).padding(.vertical, 2)
+                .background(AIMColors.window)
+                .modifier(Bevel.raised)
             Spacer()
         }
         .padding(.horizontal, 6)
     }
 
     private var list: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 1) {
-                groupRow(open: buddiesOpen.wrappedValue,
-                         title: "Buddies (\(app.state.buddies.count)/\(app.state.buddies.count))") {
-                    buddiesOpen.wrappedValue.toggle()
-                }
+        let n = app.state.buddies.count
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 2) {
+                groupRow(open: buddiesOpen.wrappedValue, title: "Buddies (\(n)/\(n))") { buddiesOpen.wrappedValue.toggle() }
                 if buddiesOpen.wrappedValue {
                     ForEach(app.state.buddies) { b in buddyRow(b) }
                 }
-                groupRow(open: false, title: "Offline (0/0)") {}
+                groupRow(open: true, title: "Family (0/0)") {}
+                groupRow(open: true, title: "Co-workers (0/0)") {}
+                groupRow(open: true, title: "Offline (0/0)") {}
             }
-            .padding(4)
+            .padding(6)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(AIMColors.field)
-        .bevelSunken()
+        .modifier(Bevel.sunken)
         .padding(.horizontal, 6)
-        .padding(.bottom, 4)
     }
 
     private func groupRow(open: Bool, title: String, toggle: @escaping () -> Void) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: open ? "arrowtriangle.down.fill" : "arrowtriangle.right.fill").font(.system(size: 7))
+        HStack(spacing: 6) {
+            Group {
+                if Skin.image("tree-open") != nil {
+                    SkinIcon(name: "tree-open").rotationEffect(.degrees(open ? 0 : -90))
+                } else {
+                    Image(systemName: open ? "arrowtriangle.down.fill" : "arrowtriangle.right.fill").font(.system(size: 7))
+                }
+            }
+            .frame(width: 9)
             Text(title).font(AIMFonts.labelBold)
         }
         .contentShape(Rectangle())
@@ -100,22 +136,24 @@ struct BuddyListView: View {
                 Image(systemName: "exclamationmark.bubble.fill").font(.system(size: 10)).foregroundStyle(AIMColors.error)
             }
         }
-        .padding(.leading, 16)
+        .padding(.leading, 22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { onOpenChat(b.id) }
+        .onTapGesture(count: 2) { actions.openChat(b.id) }
         .onTapGesture { selection.wrappedValue = b.id }
         .help(b.workingDirectory.path)
     }
 
     private var toolbar: some View {
-        HStack(spacing: 3) {
-            AIMToolbarButton(title: "IM", symbol: "bubble.left.and.text.bubble.right") {
-                if let id = selection.wrappedValue ?? app.state.buddies.first?.id { onOpenChat(id) }
+        HStack(spacing: 6) {
+            SkinButton(icon: "im", title: "Send Instant Message", fallback: "bubble.left") {
+                if let t = target { actions.openChat(t) }
             }
-            AIMToolbarButton(title: "Add", symbol: "person.badge.plus", action: onAddBuddy)
-            AIMToolbarButton(title: "Sign Off", symbol: "door.left.hand.open", action: onSignOff)
+            SkinButton(icon: "add-small", title: "Add Buddy", fallback: "person.badge.plus", action: actions.addBuddy)
+            SkinButton(icon: "runner-small", title: "Sign Off", fallback: "door.left.hand.open", action: actions.signOff)
+            Spacer()
         }
-        .padding(6)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
     }
 }

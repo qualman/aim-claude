@@ -28,6 +28,8 @@ struct Bevel: ViewModifier {
 
 extension Bevel {
     static let raised = Bevel(outerTL: AIMColors.highlight, outerBR: AIMColors.darkShadow, innerTL: AIMColors.light, innerBR: AIMColors.shadow)
+    static let etched = Bevel(outerTL: AIMColors.shadow, outerBR: AIMColors.highlight, innerTL: AIMColors.highlight, innerBR: AIMColors.shadow)
+    static let none = Bevel(outerTL: .clear, outerBR: .clear, innerTL: .clear, innerBR: .clear)
     static let sunken = Bevel(outerTL: AIMColors.shadow, outerBR: AIMColors.highlight, innerTL: AIMColors.darkShadow, innerBR: AIMColors.light)
 }
 

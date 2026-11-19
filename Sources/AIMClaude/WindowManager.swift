@@ -85,9 +85,11 @@ final class WindowManager: NSObject, NSWindowDelegate {
     func showSignOn() {
         buddyListWindow?.close()
         buddyListWindow = nil
-        let w = makeWindow(title: "Sign On", resizable: false, view: SignOnView(app: app, skin: skin) { [weak self] in
-            self?.showBuddyList()
-        })
+        let view = SignOnView(app: app, skin: skin,
+                              onSignedOn: { [weak self] in self?.showBuddyList() },
+                              onHelp: { [weak self] in self?.showAbout() },
+                              onSetup: { [weak self] in self?.showPreferences() })
+        let w = makeWindow(title: "Sign On", resizable: false, view: view)
         signOnWindow = w
         w.center()
         w.makeKeyAndOrderFront(nil)
@@ -97,30 +99,52 @@ final class WindowManager: NSObject, NSWindowDelegate {
         signOnWindow?.close()
         signOnWindow = nil
         if let w = buddyListWindow { w.makeKeyAndOrderFront(nil); return }
-        let w = makeWindow(title: "Buddy List", resizable: true, view: buddyListView())
-        w.setContentSize(NSSize(width: 230, height: 480))
+        let w = makeWindow(title: buddyListTitle, resizable: true, view: buddyListView())
+        w.setContentSize(NSSize(width: 240, height: 520))
         w.setFrameAutosaveName("BuddyList")
         buddyListWindow = w
         w.makeKeyAndOrderFront(nil)
     }
 
     private func buddyListView() -> BuddyListView {
-        BuddyListView(app: app, skin: skin, attention: attention,
-                      onOpenChat: { [weak self] in self?.openChat($0) },
-                      onAddBuddy: { [weak self] in self?.addBuddy() },
-                      onSignOff: { [weak self] in self?.signOff() })
+        BuddyListView(app: app, skin: skin, attention: attention, actions: BuddyListActions(
+            openChat: { [weak self] in self?.openChat($0) },
+            addBuddy: { [weak self] in self?.addBuddy() },
+            signOff: { [weak self] in self?.signOff() },
+            changeScreenName: { [weak self] in self?.changeScreenName() },
+            preferences: { [weak self] in self?.showPreferences() },
+            getInfo: { [weak self] in self?.showInfo($0) },
+            about: { [weak self] in self?.showAbout() }))
+    }
+
+    private var buddyListTitle: String { "\(app.state.screenName ?? "")'s Buddy List" }
+
+    func showInfo(_ id: UUID) {
+        guard let b = app.buddy(id) else { return }
+        showDialog("\(b.screenName)\n\nWorks in: \(b.workingDirectory.path)\nClaude session: \(b.sessionID.uuidString.lowercased())\nMessages: \(b.messages.count)",
+                   symbol: "person.text.rectangle")
+    }
+
+    func showAbout() {
+        showDialog("AIM for Claude\nVersion 0.1\n\nEach buddy is its own Claude Code session.", symbol: "info.circle.fill")
     }
 
     private func refreshBuddyList() {
         (buddyListWindow?.contentViewController as? NSHostingController<AnyView>)?.rootView = AnyView(buddyListView())
+        buddyListWindow?.title = buddyListTitle
     }
 
     func openChat(_ id: UUID) {
         if let w = chatWindows[id] { w.makeKeyAndOrderFront(nil); return }
         guard let buddy = app.buddy(id) else { return }
-        let view = ChatView(chat: chatController(for: id)) { [weak self] in self?.app.state.screenName ?? "Me" }
-        let w = makeWindow(title: "\(buddy.screenName) - Instant Message", resizable: true, view: view)
-        w.setContentSize(NSSize(width: 440, height: 420))
+        var window: NSWindow?
+        let view = ChatView(chat: chatController(for: id), myName: { [weak self] in self?.app.state.screenName ?? "Me" },
+                            actions: ChatActions(addBuddy: { [weak self] in self?.addBuddy() },
+                                                 getInfo: { [weak self] in self?.showInfo(id) },
+                                                 close: { window?.performClose(nil) }))
+        let w = makeWindow(title: buddy.screenName, resizable: true, view: view)
+        window = w
+        w.setContentSize(NSSize(width: 440, height: 380))
         w.setFrameAutosaveName("Chat-\(id.uuidString)")
         chatWindows[id] = w
         w.delegate = self
@@ -204,9 +228,9 @@ final class WindowManager: NSObject, NSWindowDelegate {
         w.makeKeyAndOrderFront(nil)
     }
 
-    func showDialog(_ message: String) {
+    func showDialog(_ message: String, symbol: String = "exclamationmark.triangle.fill") {
         var window: NSWindow?
-        let view = AIMDialog(message: message) { window?.close() }
+        let view = AIMDialog(message: message, symbol: symbol) { window?.close() }
         window = makeWindow(title: "AIM", resizable: false, view: view)
         dialogs.append(window!)
         window?.center()
