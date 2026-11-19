@@ -24,20 +24,47 @@ public enum ClaudeLocator {
 }
 
 /// Runs commands in the user's login + interactive zsh, so PATH matches their terminal.
+/// Output goes to a temp file rather than a pipe: a profile that starts a daemon leaves it holding
+/// stdout, and a pipe would then never reach end-of-file. A shell that doesn't exit is killed.
 public struct LoginShell: ShellRunning {
-    public init() {}
+    public struct TimedOut: Error {}
+
+    let executable: URL
+    let flags: [String]
+    let timeout: Duration
+
+    public init(executable: URL = URL(fileURLWithPath: "/bin/zsh"), flags: [String] = ["-lic"],
+                timeout: Duration = .seconds(15)) {
+        self.executable = executable
+        self.flags = flags
+        self.timeout = timeout
+    }
 
     public func run(_ command: String) throws -> String {
+        let fm = FileManager.default
+        let outFile = fm.temporaryDirectory.appendingPathComponent("aim-shell-\(UUID().uuidString)")
+        guard fm.createFile(atPath: outFile.path, contents: nil, attributes: [.posixPermissions: 0o600]) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        defer { try? fm.removeItem(at: outFile) }
+        let out = try FileHandle(forWritingTo: outFile)
+        defer { try? out.close() }
+
         let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        p.arguments = ["-lic", command]
-        let out = Pipe()
+        p.executableURL = executable
+        p.arguments = flags + [command]
         p.standardOutput = out
         p.standardError = FileHandle.nullDevice
         p.standardInput = FileHandle.nullDevice
+        let exited = DispatchSemaphore(value: 0)
+        p.terminationHandler = { _ in exited.signal() }
         try p.run()
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        return String(decoding: data, as: UTF8.self)
+        let c = timeout.components
+        let seconds = Double(c.seconds) + Double(c.attoseconds) / 1e18
+        if exited.wait(timeout: .now() + seconds) == .timedOut {
+            p.terminate()
+            throw TimedOut()
+        }
+        return String(decoding: (try? Data(contentsOf: outFile)) ?? Data(), as: UTF8.self)
     }
 }

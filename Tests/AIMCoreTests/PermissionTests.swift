@@ -154,6 +154,7 @@ private func waitForPending(_ broker: PermissionBroker, count: Int = 1) async ->
     @Test func permissionNeedsAttentionUntilResolved() {
         let store = StateStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("aim-perm-\(UUID().uuidString)"))
         let app = AppController(store: store, sounds: SilentSoundPlayer())
+        app.signOn(screenName: "SkaterBoi99")
         let b = app.addBuddy(workingDirectory: URL(fileURLWithPath: "/tmp"))
         let chat = ChatController(buddyID: b.id, app: app) { nil }
         let resolved = Mutex<[(UUID, PermissionDecision)]>([])
