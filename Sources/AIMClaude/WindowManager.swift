@@ -28,6 +28,8 @@ final class WindowManager: NSObject, NSWindowDelegate {
         startPermissionServer()
         if app.showsSignOn { showSignOn() } else { showBuddyList() }
         if let e = app.loadError { showDialog(e) }
+        app.onSaveError = { [weak self] e in self?.showSaveError(e) }
+        if let e = app.saveError { showSaveError(e) }
         locateClaude()
     }
 
@@ -49,8 +51,13 @@ final class WindowManager: NSObject, NSWindowDelegate {
         }
     }
 
+    private func showSaveError(_ message: String) {
+        showDialog("AIM couldn't save your buddy list and chats, so recent changes may be lost when it quits. \(message)")
+    }
+
     private func permissionRequested(_ r: PermissionRequest) {
-        chatController(for: r.buddyID).addPermission(r)
+        // Signed off: denied on the spot, so no chat window opens over Sign On.
+        guard chatController(for: r.buddyID).addPermission(r) else { return }
         attention.insert(r.buddyID)
         app.sounds.play(.received)
         openChat(r.buddyID)
@@ -64,6 +71,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
 
     func locateClaude() {
         let override = app.state.claudePathOverride
+        app.beginLocatingClaude()
         Task.detached {
             let shell = LoginShell()
             let result = Result { try ClaudeLocator.locate(override: override, shell: shell) }
@@ -82,9 +90,9 @@ final class WindowManager: NSObject, NSWindowDelegate {
 
     // MARK: windows
 
+    // Open the new window before closing the old one, so the app never has zero windows
+    // (it quits when the last one closes).
     func showSignOn() {
-        buddyListWindow?.close()
-        buddyListWindow = nil
         let view = SignOnView(app: app, skin: skin,
                               onSignedOn: { [weak self] in self?.showBuddyList() },
                               onHelp: { [weak self] in self?.showAbout() },
@@ -93,17 +101,22 @@ final class WindowManager: NSObject, NSWindowDelegate {
         signOnWindow = w
         w.center()
         w.makeKeyAndOrderFront(nil)
+        buddyListWindow?.close()
+        buddyListWindow = nil
     }
 
     func showBuddyList() {
+        if let w = buddyListWindow {
+            w.makeKeyAndOrderFront(nil)
+        } else {
+            let w = makeWindow(title: buddyListTitle, resizable: true, view: buddyListView())
+            w.setContentSize(NSSize(width: 240, height: 520))
+            w.setFrameAutosaveName("BuddyList")
+            buddyListWindow = w
+            w.makeKeyAndOrderFront(nil)
+        }
         signOnWindow?.close()
         signOnWindow = nil
-        if let w = buddyListWindow { w.makeKeyAndOrderFront(nil); return }
-        let w = makeWindow(title: buddyListTitle, resizable: true, view: buddyListView())
-        w.setContentSize(NSSize(width: 240, height: 520))
-        w.setFrameAutosaveName("BuddyList")
-        buddyListWindow = w
-        w.makeKeyAndOrderFront(nil)
     }
 
     private func buddyListView() -> BuddyListView {
@@ -198,6 +211,9 @@ final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     func signOff() {
+        // A turn still running would otherwise wait on a prompt nobody can see.
+        for c in chats.values { c.denyAllPermissions(ChatController.signedOffDenial) }
+        attention.removeAll()
         for w in chatWindows.values { w.close() }
         chatWindows.removeAll()
         app.signOff()

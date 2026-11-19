@@ -10,6 +10,12 @@ public final class AppController {
     /// Set when the saved state couldn't be read; the bad file is kept beside it.
     public private(set) var loadError: String?
     public private(set) var saveError: String?
+    /// True from `beginLocatingClaude()` until the result arrives; sends wait for it.
+    public private(set) var isLocatingClaude = false
+    /// Called once when saving starts failing, and again only after a save has succeeded since.
+    @ObservationIgnored public var onSaveError: ((String) -> Void)?
+
+    @ObservationIgnored private var locatorWaiters: [CheckedContinuation<Void, Never>] = []
 
     @ObservationIgnored private let store: StateStore
     @ObservationIgnored public let sounds: any SoundPlaying
@@ -81,7 +87,23 @@ public final class AppController {
         save()
     }
 
+    public func beginLocatingClaude() {
+        isLocatingClaude = true
+    }
+
+    /// Returns once any lookup in progress has finished; immediately if none is.
+    public func claudeLocated() async {
+        guard isLocatingClaude else { return }
+        await withCheckedContinuation { locatorWaiters.append($0) }
+    }
+
     public func applyLocatorResult(_ result: Result<URL, any Error>) {
+        defer {
+            isLocatingClaude = false
+            let waiters = locatorWaiters
+            locatorWaiters.removeAll()
+            for w in waiters { w.resume() }
+        }
         switch result {
         case .success(let url):
             claudePath = url
@@ -97,7 +119,9 @@ public final class AppController {
             try store.save(state)
             saveError = nil
         } catch {
+            let first = saveError == nil
             saveError = "Couldn't save: \(error.localizedDescription)"
+            if first, let message = saveError { onSaveError?(message) }
         }
     }
 }

@@ -18,6 +18,8 @@ public final class ChatController {
     @ObservationIgnored private let app: AppController
     @ObservationIgnored private let makeChannel: @MainActor () -> (any BuddyChanneling)?
     @ObservationIgnored private var channel: (any BuddyChanneling)?
+    /// The claude path `channel` was built with; a different one (from Preferences) rebuilds it.
+    @ObservationIgnored private var channelClaudePath: URL?
     @ObservationIgnored private var tail: Task<Void, Never>?
 
     public init(buddyID: UUID, app: AppController, makeChannel: @escaping @MainActor () -> (any BuddyChanneling)?) {
@@ -31,8 +33,25 @@ public final class ChatController {
 
     public var needsAttention: Bool { !pendingPermissions.isEmpty }
 
-    public func addPermission(_ r: PermissionRequest) {
+    public static let signedOffDenial = "The AIM user is signed off."
+
+    /// Returns false when the request was denied on the spot because the user is signed off.
+    @discardableResult
+    public func addPermission(_ r: PermissionRequest) -> Bool {
+        guard app.state.signedOn else {
+            onResolvePermission?(r.id, .deny(Self.signedOffDenial))
+            append(.system, "Denied because you're signed off: \(r.inputSummary)")
+            return false
+        }
         pendingPermissions.append(r)
+        return true
+    }
+
+    /// Denies every open prompt in this chat, e.g. when the user signs off.
+    public func denyAllPermissions(_ reason: String) {
+        let open = pendingPermissions
+        pendingPermissions.removeAll()
+        for r in open { onResolvePermission?(r.id, .deny(reason)) }
     }
 
     public func resolvePermission(_ id: UUID, allow: Bool) {
@@ -73,7 +92,11 @@ public final class ChatController {
     }
 
     private func run(_ text: String) async {
-        if channel == nil { channel = makeChannel() }
+        await app.claudeLocated()
+        if channel == nil || channelClaudePath != app.claudePath {
+            channel = makeChannel()
+            channelClaudePath = app.claudePath
+        }
         guard let channel else {
             append(.error, "AIM couldn't find the claude command, so this message wasn't sent.")
             return
@@ -87,9 +110,7 @@ public final class ChatController {
 
     /// Any prompt still open belongs to a turn that's over; answering it later would do nothing.
     private func endTurn() {
-        let open = pendingPermissions
-        pendingPermissions.removeAll()
-        for r in open { onResolvePermission?(r.id, .deny("The turn ended before you answered.")) }
+        denyAllPermissions("The turn ended before you answered.")
         onTurnEnded?()
     }
 

@@ -129,6 +129,7 @@ private func drain(_ p: any RunningProcess) async -> Error? {
     private func setup(_ scripts: [[ClaudeEvent]]) -> (AppController, ChatController) {
         let store = StateStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("aim-rf-\(UUID().uuidString)"))
         let app = AppController(store: store, sounds: SilentSoundPlayer())
+        app.signOn(screenName: "SkaterBoi99")
         let b = app.addBuddy(workingDirectory: URL(fileURLWithPath: "/tmp"))
         let fake = FakeChannel(scripts)
         return (app, ChatController(buddyID: b.id, app: app) { fake })
