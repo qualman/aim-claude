@@ -42,8 +42,11 @@ ICONS = {
     "e5ff2f81": "send",
 }
 
-SOUNDS = {"BuddyIn.wav": "door-open.wav", "BuddyOut.wav": "door-close.wav", "IM.wav": "im.wav",
-          "Welcome.wav": "welcome.wav", "Goodbye.wav": "goodbye.wav"}
+# <assets>/sounds/<file> -> skin name. These are the only sounds the app plays.
+SOUNDS = {"BuddyIn.wav": "door-open.wav", "BuddyOut.wav": "door-close.wav",
+          "received.mp3": "received.mp3", "sent.mp3": "sent.mp3"}
+# Sounds earlier versions installed; removed so nothing else can play.
+RETIRED = ["im.wav", "welcome.wav", "goodbye.wav"]
 
 
 def archives(root):
@@ -82,13 +85,21 @@ def main(root):
     for i, data in enumerate(fonts):
         open(os.path.join(SKIN, "fonts", f"ms-sans-serif-{i + 1}.woff2"), "wb").write(data)
 
-    sounds = os.path.join(root, "AOL Instant Messenger sounds")
+    for name in RETIRED:
+        if os.path.exists(os.path.join(SKIN, name)):
+            os.remove(os.path.join(SKIN, name))
+    sounds = os.path.join(root, "sounds")
+    copied = []
     for src, dst in SOUNDS.items():
-        if os.path.exists(os.path.join(sounds, src)):
-            shutil.copy(os.path.join(sounds, src), os.path.join(SKIN, dst))
+        path = os.path.join(sounds, src)
+        if os.path.exists(path):
+            shutil.copy(path, os.path.join(SKIN, dst))
+            copied.append(dst + ("  (warning: only %d bytes, probably not playable)" % os.path.getsize(path)
+                                 if os.path.getsize(path) < 100 else ""))
 
     missing = sorted(set(ICONS.values()) - set(found))
     print(f"icons: {len(found)}/{len(ICONS)}  fonts: {len(fonts)}  skin: {SKIN}")
+    print("sounds:", *copied, sep="\n  ")
     if missing:
         print("missing (app will use fallbacks):", ", ".join(missing))
 

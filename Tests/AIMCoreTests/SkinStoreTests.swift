@@ -11,8 +11,8 @@ import Testing
 
     @Test func returnsPresentFile() throws {
         let d = try dir()
-        try Data([1]).write(to: d.appendingPathComponent("im.wav"))
-        #expect(SkinStore(directory: d).url(for: .im)?.lastPathComponent == "im.wav")
+        try Data([1]).write(to: d.appendingPathComponent("received.mp3"))
+        #expect(SkinStore(directory: d).url(for: .received)?.lastPathComponent == "received.mp3")
         #expect(SkinStore(directory: d).url(for: .doorOpen) == nil)
     }
 
@@ -29,9 +29,10 @@ import Testing
     @Test func cueMapsToSkinFile() {
         #expect(SoundCue.buddyIn.asset == .doorOpen)
         #expect(SoundCue.buddyOut.asset == .doorClose)
-        #expect(SoundCue.message.asset == .im)
-        #expect(SoundCue.welcome.asset == .welcome)
-        #expect(SoundCue.goodbye.asset == .goodbye)
+        #expect(SoundCue.received.asset == .received)
+        #expect(SoundCue.sent.asset == .sent)
+        #expect(SkinAsset.received.rawValue == "received.mp3")
+        #expect(SkinAsset.sent.rawValue == "sent.mp3")
     }
 }
 

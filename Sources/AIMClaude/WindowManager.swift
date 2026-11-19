@@ -52,7 +52,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     private func permissionRequested(_ r: PermissionRequest) {
         chatController(for: r.buddyID).addPermission(r)
         attention.insert(r.buddyID)
-        app.sounds.play(.message)
+        app.sounds.play(.received)
         openChat(r.buddyID)
         NSApp.requestUserAttention(.informationalRequest)
     }

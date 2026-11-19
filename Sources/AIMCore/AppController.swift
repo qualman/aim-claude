@@ -38,14 +38,14 @@ public final class AppController {
         state.screenName = name
         state.signedOn = true
         save()
-        sounds.play(.welcome)
+        sounds.play(.buddyIn)
         return true
     }
 
     public func signOff() {
         state.signedOn = false
         save()
-        sounds.play(.goodbye)
+        sounds.play(.buddyOut)
     }
 
     public func setScreenName(_ name: String) {

@@ -49,7 +49,7 @@ private func setup(_ scripts: [[ClaudeEvent]], channel: Bool = true) -> (AppCont
         #expect(!b.pendingTurn)
         #expect(b.hasStartedSession)
         #expect(try store.load().buddies[0].messages.count == 2)
-        #expect(sounds.cues.withLock { $0 }.last == .message)
+        #expect(sounds.cues.withLock { $0 } == [.buddyIn, .buddyIn, .sent, .received])
     }
 
     @Test func activityUpdatesStatusLine() async {

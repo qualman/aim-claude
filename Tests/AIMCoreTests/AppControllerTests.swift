@@ -21,7 +21,7 @@ private func tempStore() -> StateStore {
         #expect(c.state.screenName == "SkaterBoi99")
         #expect(c.state.signedOn)
         #expect(!c.showsSignOn)
-        #expect(sounds.cues.withLock { $0 } == [.welcome])
+        #expect(sounds.cues.withLock { $0 } == [.buddyIn])
     }
 
     @Test func rejectsBlankScreenName() {
@@ -38,7 +38,7 @@ private func tempStore() -> StateStore {
         c.signOff()
         #expect(!c.state.signedOn)
         #expect(c.state.buddies.count == 1)
-        #expect(sounds.cues.withLock { $0 }.last == .goodbye)
+        #expect(sounds.cues.withLock { $0 }.last == .buddyOut)
     }
 
     @Test func addBuddyNamesPersistsAndPlaysDoor() throws {

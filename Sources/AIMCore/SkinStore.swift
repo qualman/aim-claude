@@ -5,9 +5,8 @@ public enum SkinAsset: String, CaseIterable, Sendable {
     case logo = "logo.png"
     case doorOpen = "door-open.wav"
     case doorClose = "door-close.wav"
-    case im = "im.wav"
-    case welcome = "welcome.wav"
-    case goodbye = "goodbye.wav"
+    case received = "received.mp3"
+    case sent = "sent.mp3"
 }
 
 public struct SkinStore: Sendable {
@@ -39,15 +38,16 @@ public struct SkinStore: Sendable {
 }
 
 public enum SoundCue: Sendable {
-    case buddyIn, buddyOut, message, welcome, goodbye
+    /// Buddies coming online (sign on, add buddy) and going away (sign off).
+    case buddyIn, buddyOut
+    case received, sent
 
     public var asset: SkinAsset {
         switch self {
         case .buddyIn: .doorOpen
         case .buddyOut: .doorClose
-        case .message: .im
-        case .welcome: .welcome
-        case .goodbye: .goodbye
+        case .received: .received
+        case .sent: .sent
         }
     }
 }
