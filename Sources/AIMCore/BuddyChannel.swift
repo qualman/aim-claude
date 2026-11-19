@@ -18,8 +18,17 @@ public actor BuddyChannel: BuddyChanneling {
     private var tail: Task<Void, Never>?
     private var lastActivity = ContinuousClock.now
 
+    /// Longer than claude's 10-minute maximum tool runtime: stream-json is silent while a tool runs.
+    public static let defaultInactivityTimeout: Duration = .seconds(660)
+
+    private let permissionPending: (@Sendable () async -> Bool)?
+
+    /// `permissionPending` reports whether this buddy is waiting on the user's Allow/Deny;
+    /// the inactivity timeout doesn't count that time.
     public init(buddy: Buddy, claudePath: URL, mcpConfigPath: URL?, launcher: any ProcessLaunching,
-                inactivityTimeout: Duration = .seconds(120)) {
+                inactivityTimeout: Duration = BuddyChannel.defaultInactivityTimeout,
+                permissionPending: (@Sendable () async -> Bool)? = nil) {
+        self.permissionPending = permissionPending
         self.sessionID = buddy.sessionID
         self.hasStartedSession = buddy.hasStartedSession
         self.workingDirectory = buddy.workingDirectory
@@ -79,7 +88,14 @@ public actor BuddyChannel: BuddyChanneling {
         let watchdog = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: timeout / 4)
-                if self.isStale() { process.terminate(); return true }
+                if self.isStale() {
+                    if await self.permissionPending?() == true {
+                        self.markActive()
+                    } else {
+                        process.terminate()
+                        return true
+                    }
+                }
             }
             return false
         }
@@ -110,10 +126,13 @@ public actor BuddyChannel: BuddyChanneling {
             return .done
         }
         if let f = failure {
-            if f.stderrTail.contains("No conversation found") { return .sessionLost }
-            if f.stderrTail.contains("already in use") { return .sessionInUse }
-            let detail = f.stderrTail.isEmpty ? "" : ": \(f.stderrTail)"
-            cont.yield(.failure("claude exited with status \(f.status)\(detail)"))
+            // claude reports some errors on stderr and some in result.errors; check both.
+            let reported = pending.compactMap { if case .failure(let m) = $0 { m } else { nil } }.joined(separator: "; ")
+            let evidence = f.stderrTail + "\n" + reported
+            if evidence.contains("No conversation found") { return .sessionLost }
+            if evidence.contains("already in use") { return .sessionInUse }
+            let detail = [reported, f.stderrTail].filter { !$0.isEmpty }.joined(separator: " — ")
+            cont.yield(.failure("claude exited with status \(f.status)\(detail.isEmpty ? "" : ": \(detail)")"))
             return .done
         }
         if let e = pending.first {
@@ -122,6 +141,10 @@ public actor BuddyChannel: BuddyChanneling {
             cont.yield(.failure("claude ended without replying."))
         }
         return .done
+    }
+
+    private func markActive() {
+        lastActivity = .now
     }
 
     private func isStale() -> Bool {

@@ -27,8 +27,15 @@ public protocol ProcessLaunching: Sendable {
 public struct SystemProcessLauncher: ProcessLaunching {
     let basePATH: String?
 
+    /// Stops every claude process the app started. Called when the app quits.
+    public static func terminateAll() {
+        for p in SystemProcess.live.withLock({ Array($0.values) }) where p.isRunning { p.terminate() }
+    }
+
     public init(basePATH: String?) {
         self.basePATH = basePATH
+        // A write to a process that already exited must fail, not kill the app.
+        signal(SIGPIPE, SIG_IGN)
     }
 
     public func launch(executable: URL, arguments: [String], workingDirectory: URL,
@@ -41,6 +48,8 @@ public struct SystemProcessLauncher: ProcessLaunching {
 }
 
 final class SystemProcess: RunningProcess, @unchecked Sendable {
+    /// Running processes, so they can all be stopped when the app quits.
+    static let live = Mutex<[ObjectIdentifier: Process]>([:])
     let lines: AsyncThrowingStream<String, Error>
     private let process = Process()
     private static let stderrLimit = 2000
@@ -77,8 +86,14 @@ final class SystemProcess: RunningProcess, @unchecked Sendable {
                 cont.finish(throwing: ProcessFailure(status: -1, stderrTail: "Couldn't start claude: \(error.localizedDescription)"))
                 return
             }
-            input.fileHandleForWriting.write(Data(stdin.utf8))
-            try? input.fileHandleForWriting.close()
+            let key = ObjectIdentifier(process)
+            Self.live.withLock { $0[key] = process }
+            // Write on a plain thread: a large message would otherwise block a concurrency thread.
+            let stdinData = Data(stdin.utf8)
+            DispatchQueue.global().async {
+                try? input.fileHandleForWriting.write(contentsOf: stdinData)
+                try? input.fileHandleForWriting.close()
+            }
             Task {
                 do {
                     for try await line in out.fileHandleForReading.bytes.lines { cont.yield(line) }
@@ -86,6 +101,11 @@ final class SystemProcess: RunningProcess, @unchecked Sendable {
                 var status: Int32 = 0
                 for await s in exited.stream { status = s }
                 err.fileHandleForReading.readabilityHandler = nil
+                // Bytes written just before exit may not have reached the handler yet.
+                if let rest = try? err.fileHandleForReading.readToEnd() {
+                    stderrBuf.withLock { $0.append(rest) }
+                }
+                Self.live.withLock { _ = $0.removeValue(forKey: key) }
                 let tail = stderrBuf.withLock { String(decoding: $0.suffix(Self.stderrLimit), as: UTF8.self) }
                 if status == 0 {
                     cont.finish()

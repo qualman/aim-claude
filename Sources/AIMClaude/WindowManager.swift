@@ -58,8 +58,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     func shutdown() {
-        let broker = broker
-        Task { await broker.shutdown() }
+        SystemProcessLauncher.terminateAll()
         server?.stop()
     }
 
@@ -136,14 +135,25 @@ final class WindowManager: NSObject, NSWindowDelegate {
             Task { await broker.resolve(rid, decision) }
             if c?.needsAttention == false { self?.attention.remove(id) }
         }
+        c.onTurnEnded = { [weak self] in
+            Task { await broker.cancelAll(buddyID: id) }
+            self?.attention.remove(id)
+        }
+        // AIM popped the IM window open when a message arrived.
+        c.onReply = { [weak self] in
+            guard let self, self.app.state.signedOn, self.chatWindows[id] == nil else { return }
+            self.openChat(id)
+        }
         chats[id] = c
         return c
     }
 
     private func makeChannel(for id: UUID) -> (any BuddyChanneling)? {
         guard let buddy = app.buddy(id), let claude = app.claudePath else { return nil }
+        let broker = broker
         return BuddyChannel(buddy: buddy, claudePath: claude, mcpConfigPath: mcpConfigPath(id),
-                            launcher: SystemProcessLauncher(basePATH: basePATH))
+                            launcher: SystemProcessLauncher(basePATH: basePATH),
+                            permissionPending: { await broker.pending.contains { $0.buddyID == id } })
     }
 
     /// Set up by the permission server; nil means no permission prompts.

@@ -114,7 +114,7 @@ private func waitForPending(_ broker: PermissionBroker, count: Int = 1) async ->
         async let response = post(url, #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"approve","arguments":{"tool_name":"Bash","input":{"command":"python3 -c \"print(1)\""},"tool_use_id":"t1"}}}"#)
         let pending = await waitForPending(broker)
         #expect(pending.first?.buddyID == buddy)
-        #expect(pending.first?.inputSummary == "Running: python3 -c \"print(1)\"")
+        #expect(pending.first?.inputSummary == "Run: python3 -c \"print(1)\"")
         await broker.resolve(pending[0].id, .allow)
         let (_, json) = try await response
         let decision = try decisionJSON(json)

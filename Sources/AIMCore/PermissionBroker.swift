@@ -50,6 +50,13 @@ public actor PermissionBroker {
         cont.resume(returning: decision)
     }
 
+    /// Denies a buddy's open requests, e.g. when its turn ended before the user answered.
+    public func cancelAll(buddyID: UUID) {
+        for id in order where waiting[id]?.0.buddyID == buddyID {
+            resolve(id, .deny("The turn ended before you answered."))
+        }
+    }
+
     public func shutdown() {
         closed = true
         for id in order { resolve(id, .deny("App closed")) }

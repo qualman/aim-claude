@@ -76,6 +76,8 @@ public final class MCPServer: Sendable {
         }
     }
 
+    static let maxBody = 1_000_000
+
     struct HTTPRequest {
         var method: String
         var path: String
@@ -97,6 +99,10 @@ public final class MCPServer: Sendable {
             }
         }
         let bodyStart = headerEnd.upperBound
+        // Reject nonsense lengths rather than trapping on a bad range or buffering forever.
+        guard (0...maxBody).contains(length) else {
+            return (HTTPRequest(method: "BAD", path: "", body: Data()), Data())
+        }
         guard buf.count - bodyStart >= length else { return nil }
         let body = buf.subdata(in: bodyStart..<(bodyStart + length))
         let rest = buf.subdata(in: (bodyStart + length)..<buf.count)
@@ -111,6 +117,7 @@ public final class MCPServer: Sendable {
     }
 
     func handle(_ r: HTTPRequest) async -> Data {
+        if r.method == "BAD" { return Self.response(400, "Bad Request") }
         let segments = r.path.split(separator: "/")
         guard segments.count == 3, segments[0] == "buddy", segments[2] == secret,
               let buddyID = UUID(uuidString: String(segments[1])) else {
@@ -155,7 +162,7 @@ public final class MCPServer: Sendable {
         let tool = args["tool_name"] as? String ?? "a tool"
         let input = args["input"] as? [String: Any] ?? [:]
         let request = PermissionRequest(id: UUID(), buddyID: buddyID, toolName: tool,
-                                        inputSummary: EventParser.truncate(EventParser.describe(tool: tool, input: input)))
+                                        inputSummary: EventParser.permissionSummary(tool: tool, input: input))
         let decision: [String: Any]
         switch await broker.request(request) {
         case .allow: decision = ["behavior": "allow", "updatedInput": input]

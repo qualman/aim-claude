@@ -49,6 +49,22 @@ public struct EventParser: Sendable {
         }
     }
 
+    /// What the user is approving, in full: no truncation, full paths, every argument.
+    public static func permissionSummary(tool: String, input: [String: Any]) -> String {
+        let path = input["file_path"] as? String
+        switch tool {
+        case "Bash": return "Run: \(input["command"] as? String ?? "")"
+        case "Read" where path != nil: return "Read \(path!)"
+        case "Edit" where path != nil, "MultiEdit" where path != nil: return "Edit \(path!)"
+        case "Write" where path != nil: return "Write \(path!)"
+        case "WebFetch": return "Fetch \(input["url"] as? String ?? "")"
+        default:
+            let json = (try? JSONSerialization.data(withJSONObject: input, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]))
+                .map { String(decoding: $0, as: UTF8.self) } ?? ""
+            return "Use \(tool): \(json)"
+        }
+    }
+
     static func truncate(_ s: String) -> String {
         let oneLine = s.replacingOccurrences(of: "\n", with: " ")
         guard oneLine.count > maxActivityLength else { return oneLine }

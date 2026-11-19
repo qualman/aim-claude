@@ -11,6 +11,8 @@ public final class ChatController {
     public private(set) var inFlight = 0
     /// Tool calls waiting for Allow / Deny in this chat.
     public private(set) var pendingPermissions: [PermissionRequest] = []
+    @ObservationIgnored public var onReply: (() -> Void)?
+    @ObservationIgnored public var onTurnEnded: (() -> Void)?
     @ObservationIgnored public var onResolvePermission: ((UUID, PermissionDecision) -> Void)?
 
     @ObservationIgnored private let app: AppController
@@ -79,6 +81,15 @@ public final class ChatController {
             apply(event)
         }
         activity = nil
+        endTurn()
+    }
+
+    /// Any prompt still open belongs to a turn that's over; answering it later would do nothing.
+    private func endTurn() {
+        let open = pendingPermissions
+        pendingPermissions.removeAll()
+        for r in open { onResolvePermission?(r.id, .deny("The turn ended before you answered.")) }
+        onTurnEnded?()
     }
 
     public func apply(_ event: ClaudeEvent) {
@@ -90,6 +101,7 @@ public final class ChatController {
             append(.buddy, text)
             app.updateBuddy(buddyID) { $0.hasStartedSession = true }
             app.sounds.play(.message)
+            onReply?()
         case .failure(let message):
             activity = nil
             append(.error, message)
