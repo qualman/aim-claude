@@ -7,6 +7,6 @@ let package = Package(
     targets: [
         .target(name: "AIMCore"),
         .executableTarget(name: "AIMClaude", dependencies: ["AIMCore"]),
-        .testTarget(name: "AIMCoreTests", dependencies: ["AIMCore"]),
+        .testTarget(name: "AIMCoreTests", dependencies: ["AIMCore"], exclude: ["Fixtures"]),
     ]
 )

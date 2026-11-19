@@ -79,7 +79,7 @@ public actor BuddyChannel: BuddyChanneling {
         let watchdog = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: timeout / 4)
-                if await self.isStale() { process.terminate(); return true }
+                if self.isStale() { process.terminate(); return true }
             }
             return false
         }
