@@ -1,3 +1,4 @@
+import AIMCore
 import AppKit
 import SwiftUI
 
@@ -5,7 +6,24 @@ import SwiftUI
 /// Lets the look be checked without screen-recording permission.
 @MainActor
 enum RenderMode {
-    static var screens: [(String, AnyView)] = [("gallery", AnyView(LookGallery()))]
+    static var screens: [(String, AnyView)] {
+        let skin = SkinStore(directory: AppPaths.skin)
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("aim-render-\(UUID().uuidString)")
+        let app = AppController(store: StateStore(directory: tmp), sounds: SilentSoundPlayer())
+        app.signOn(screenName: "SkaterBoi99")
+        let a = app.addBuddy(workingDirectory: URL(fileURLWithPath: "/tmp"))
+        app.addBuddy(workingDirectory: URL(fileURLWithPath: "/tmp"))
+        return [
+            ("gallery", AnyView(LookGallery())),
+            ("signon", AnyView(SignOnView(app: app, skin: skin) {})),
+            ("buddylist", AnyView(BuddyListView(app: app, skin: skin, attention: [a.id], onOpenChat: { _ in },
+                                                onAddBuddy: {}, onSignOff: {}).frame(width: 230, height: 480))),
+            ("dialog", AnyView(AIMDialog(message: "AIM couldn't find the claude command. Install Claude Code, or set its path in Preferences.") {})),
+        ] + extraScreens(app: app, skin: skin)
+    }
+
+    /// Later screens register here.
+    static func extraScreens(app: AppController, skin: SkinStore) -> [(String, AnyView)] { [] }
 
     static func runIfRequested() {
         let args = CommandLine.arguments
@@ -13,12 +31,18 @@ enum RenderMode {
         let dir = URL(fileURLWithPath: args[i + 1])
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for (name, view) in screens {
-            let r = ImageRenderer(content: view.environment(\.colorScheme, .light))
-            r.scale = 2
-            if let img = r.nsImage, let tiff = img.tiffRepresentation,
-               let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
-                try? png.write(to: dir.appendingPathComponent("\(name).png"))
-            }
+            // A real NSHostingView in an offscreen window, so AppKit-backed views (fields, scroll views) draw too.
+            let host = NSHostingView(rootView: view.environment(\.colorScheme, .light))
+            let size = host.fittingSize
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless],
+                                  backing: .buffered, defer: false)
+            window.contentView = host
+            host.frame = NSRect(origin: .zero, size: size)
+            host.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+            guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { continue }
+            host.cacheDisplay(in: host.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent("\(name).png"))
         }
         exit(0)
     }

@@ -14,6 +14,17 @@ public final class StateStore: Sendable {
         return try JSONDecoder().decode(AppState.self, from: Data(contentsOf: file))
     }
 
+    /// Moves an unreadable state file aside so it isn't overwritten. Returns the new file name.
+    public func quarantine() -> String? {
+        let name = "state.json.corrupt-\(Int(Date().timeIntervalSince1970))"
+        do {
+            try FileManager.default.moveItem(at: file, to: directory.appendingPathComponent(name))
+            return name
+        } catch {
+            return nil
+        }
+    }
+
     public func save(_ state: AppState) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let encoder = JSONEncoder()

@@ -33,7 +33,7 @@ struct AIMToolbarButton: View {
                 Text(title).font(AIMFonts.small)
             }
             .foregroundStyle(AIMColors.text)
-            .frame(width: 52, height: 38)
+            .frame(width: 62, height: 38)
         }
         .buttonStyle(AIMButtonStyle())
     }
