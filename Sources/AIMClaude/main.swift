@@ -8,4 +8,5 @@ struct AIMClaudeApp: App {
     }
 }
 
+MainActor.assumeIsolated { RenderMode.runIfRequested() }
 AIMClaudeApp.main()
