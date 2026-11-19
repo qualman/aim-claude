@@ -5,6 +5,9 @@ import Foundation
 public struct EventParser: Sendable {
     static let maxActivityLength = 80
 
+    /// True once a `result` event has been seen.
+    public private(set) var sawResult = false
+
     public init() {}
 
     public mutating func parse(line: String) -> [ClaudeEvent] {
@@ -19,6 +22,7 @@ public struct EventParser: Sendable {
                 return .activity(Self.truncate(Self.describe(tool: name, input: item["input"] as? [String: Any] ?? [:])))
             }
         case "result":
+            sawResult = true
             if obj["is_error"] as? Bool == true {
                 let errors = (obj["errors"] as? [String])?.joined(separator: "; ")
                 let text = (obj["result"] as? String).flatMap { $0.isEmpty ? nil : $0 }
