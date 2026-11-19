@@ -9,6 +9,9 @@ public final class ChatController {
     public private(set) var activity: String?
     /// Turns sent but not yet answered.
     public private(set) var inFlight = 0
+    /// Tool calls waiting for Allow / Deny in this chat.
+    public private(set) var pendingPermissions: [PermissionRequest] = []
+    @ObservationIgnored public var onResolvePermission: ((UUID, PermissionDecision) -> Void)?
 
     @ObservationIgnored private let app: AppController
     @ObservationIgnored private let makeChannel: @MainActor () -> (any BuddyChanneling)?
@@ -23,6 +26,20 @@ public final class ChatController {
 
     public var buddy: Buddy? { app.buddy(buddyID) }
     public var messages: [ChatMessage] { buddy?.messages ?? [] }
+
+    public var needsAttention: Bool { !pendingPermissions.isEmpty }
+
+    public func addPermission(_ r: PermissionRequest) {
+        pendingPermissions.append(r)
+    }
+
+    public func resolvePermission(_ id: UUID, allow: Bool) {
+        guard let r = pendingPermissions.first(where: { $0.id == id }) else { return }
+        pendingPermissions.removeAll { $0.id == id }
+        onResolvePermission?(id, allow ? .allow : .deny("The AIM user clicked Deny."))
+        let verb = allow ? "allowed" : "denied"
+        append(.system, "You \(verb): \(r.inputSummary)")
+    }
 
     public var statusLine: String? {
         let name = buddy?.screenName ?? "Buddy"

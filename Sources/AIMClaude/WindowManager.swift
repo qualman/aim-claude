@@ -21,10 +21,46 @@ final class WindowManager: NSObject, NSWindowDelegate {
         self.skin = skin
     }
 
+    let broker = PermissionBroker()
+    private var server: MCPServer?
+
     func start() {
+        startPermissionServer()
         if app.showsSignOn { showSignOn() } else { showBuddyList() }
         if let e = app.loadError { showDialog(e) }
         locateClaude()
+    }
+
+    /// Without the server, buddies still work; unapproved tools are just denied as in plain `claude -p`.
+    private func startPermissionServer() {
+        let server = MCPServer(broker: broker, configDirectory: AppPaths.support.appendingPathComponent("mcp"))
+        self.server = server
+        Task {
+            await broker.setObserver { r in
+                Task { @MainActor [weak self] in self?.permissionRequested(r) }
+            }
+            do {
+                try await server.start()
+                mcpConfigPath = { id in try? server.configPath(for: id) }
+            } catch {
+                self.server = nil
+                showDialog("AIM couldn't start its permission helper, so buddies can't ask before running commands: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func permissionRequested(_ r: PermissionRequest) {
+        chatController(for: r.buddyID).addPermission(r)
+        attention.insert(r.buddyID)
+        app.sounds.play(.message)
+        openChat(r.buddyID)
+        NSApp.requestUserAttention(.informationalRequest)
+    }
+
+    func shutdown() {
+        let broker = broker
+        Task { await broker.shutdown() }
+        server?.stop()
     }
 
     func locateClaude() {
@@ -94,6 +130,11 @@ final class WindowManager: NSObject, NSWindowDelegate {
     func chatController(for id: UUID) -> ChatController {
         if let c = chats[id] { return c }
         let c = ChatController(buddyID: id, app: app) { [weak self] in self?.makeChannel(for: id) }
+        let broker = broker
+        c.onResolvePermission = { [weak self, weak c] rid, decision in
+            Task { await broker.resolve(rid, decision) }
+            if c?.needsAttention == false { self?.attention.remove(id) }
+        }
         chats[id] = c
         return c
     }

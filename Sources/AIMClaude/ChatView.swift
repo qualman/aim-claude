@@ -17,6 +17,11 @@ struct ChatView: View {
             menuStrip
             transcript
             status
+            ForEach(chat.pendingPermissions) { r in
+                PermissionPromptView(buddyName: chat.buddy?.screenName ?? "Buddy", request: r) { allow in
+                    chat.resolvePermission(r.id, allow: allow)
+                }
+            }
             formattingBar
             input
             buttons

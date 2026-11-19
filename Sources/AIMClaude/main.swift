@@ -13,6 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windows.start()
     }
 
+    func applicationWillTerminate(_ notification: Notification) { windows.shutdown() }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     @objc func changeScreenName(_ sender: Any?) { windows.changeScreenName() }

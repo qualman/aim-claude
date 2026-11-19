@@ -35,6 +35,7 @@ enum RenderMode {
         }
         let chat = ChatController(buddyID: b.id, app: app) { nil }
         chat.apply(.activity("Reading build-app.sh"))
+        chat.addPermission(PermissionRequest(id: UUID(), buddyID: b.id, toolName: "Bash", inputSummary: "Running: swift build -c release"))
         return [("chat", AnyView(ChatView(chat: chat) { "SkaterBoi99" }.frame(width: 440, height: 420)))]
     }
 
