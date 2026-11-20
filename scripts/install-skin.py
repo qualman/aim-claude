@@ -4,6 +4,7 @@
 Nothing here is bundled with the app: you supply the assets folder yourself, laid out as
 
     <assets>/icons/<name>.png|gif    e.g. send.png, send-hover.png, signon-disabled.png
+    <assets>/icons/logo.png          the running man, used where a banner is missing
     <assets>/sounds/BuddyIn.wav, BuddyOut.wav, received.mp3, sent.mp3
     <assets>/fonts/*.woff2|woff|ttf|otf
 
@@ -56,6 +57,10 @@ def main(root):
     for n in installed:
         install_icon(available[n], os.path.join(SKIN, "icons", n + ".png"))
 
+    logo = os.path.join(icons_src, "logo.png")
+    if os.path.isfile(logo):
+        shutil.copy(logo, os.path.join(SKIN, "logo.png"))
+
     fonts_src = os.path.join(root, "fonts")
     fonts = sorted(f for f in os.listdir(fonts_src) if f.lower().endswith(FONT_EXTS)) if os.path.isdir(fonts_src) else []
     for f in fonts:
@@ -75,7 +80,7 @@ def main(root):
 
     hovers = sum(n.endswith("-hover") for n in installed)
     missing = [n for n in ICONS if n not in available]
-    print(f"icons: {len(installed) - hovers}/{len(ICONS)} (+{hovers} hover)  fonts: {len(fonts)}  skin: {SKIN}")
+    print(f"icons: {len(installed) - hovers}/{len(ICONS)} (+{hovers} hover)  logo: {os.path.isfile(logo)}  fonts: {len(fonts)}  skin: {SKIN}")
     print("sounds:", *copied, sep="\n  ")
     if missing:
         print("missing (app will use fallbacks):", ", ".join(missing))

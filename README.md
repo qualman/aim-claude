@@ -56,7 +56,7 @@ out in a folder like this:
 
 ```
 aim_assets/
-  icons/   send.png, send-hover.png, signon-disabled.png, buddylist-im.png, ...
+  icons/   send.png, send-hover.png, signon-disabled.png, buddylist-im.png, logo.png, ...
   sounds/  BuddyIn.wav, BuddyOut.wav, received.mp3, sent.mp3
   fonts/   *.woff2 / .woff / .ttf / .otf
 ```
