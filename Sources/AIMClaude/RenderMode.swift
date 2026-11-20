@@ -62,6 +62,7 @@ enum RenderMode {
         let args = CommandLine.arguments
         guard let i = args.firstIndex(of: "--render"), i + 1 < args.count else { return }
         Skin.registerFonts()
+        SkinButton.previewHover = ProcessInfo.processInfo.environment["AIM_RENDER_HOVER"] == "1"
         let dir = URL(fileURLWithPath: args[i + 1])
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for (name, view) in screens {

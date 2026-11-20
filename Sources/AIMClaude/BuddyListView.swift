@@ -146,7 +146,7 @@ struct BuddyListView: View {
 
     private var toolbar: some View {
         HStack(spacing: 6) {
-            SkinButton(icon: "im", title: "Send Instant Message", fallback: "bubble.left") {
+            SkinButton(icon: "buddylist-im", title: "Send Instant Message", fallback: "bubble.left") {
                 if let t = target { actions.openChat(t) }
             }
             SkinButton(icon: "add-small", title: "Add Buddy", fallback: "person.badge.plus", action: actions.addBuddy)
