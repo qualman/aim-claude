@@ -13,7 +13,7 @@ final class SoundPlayer: SoundPlaying, @unchecked Sendable {
     func play(_ cue: SoundCue) {
         DispatchQueue.main.async { [self] in
             // Only the user's own sound files play; a missing or unreadable file is silent.
-            guard let sound = skin.url(for: cue.asset).flatMap({ NSSound(contentsOf: $0, byReference: true) }) else { return }
+            guard let sound = skin.sound(cue).flatMap({ NSSound(contentsOf: $0, byReference: true) }) else { return }
             playing.removeAll { !$0.isPlaying }
             playing.append(sound)
             sound.play()

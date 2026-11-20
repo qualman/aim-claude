@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// An original stick-figure runner used when no logo.png is in the skin folder.
+/// An original stick-figure runner used when the skin has no icons/logo.
 struct FallbackRunner: View {
     var body: some View {
         Canvas { ctx, size in

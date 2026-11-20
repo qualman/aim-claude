@@ -51,26 +51,27 @@ AIM_LIVE=1 scripts/test.sh
 
 ## Skin (art, sounds, fonts)
 
-This repo includes no AOL artwork or sounds. If you have your own copies, lay them
-out in a folder like this:
+This repo includes no AOL artwork or sounds. If you have your own copies, name them
+to match what the app looks for and lay them out like this:
 
 ```
 aim_assets/
-  icons/   send.png, send-hover.png, signon-disabled.png, buddylist-im.png, logo.png, ...
-  sounds/  BuddyIn.wav, BuddyOut.wav, received.mp3, sent.mp3
+  icons/   <name>.png or .gif: send, send-hover, signon-disabled, buddylist-im, logo, ...
+  sounds/  buddy-in, buddy-out, received, sent (.wav, .mp3, .aiff or .m4a)
   fonts/   *.woff2 / .woff / .ttf / .otf
 ```
 
-Then install them into the app's skin folder:
+Then install them:
 
 ```sh
 scripts/install-skin.py ~/path/to/aim_assets
 ```
 
-They're copied to `~/Library/Application Support/AIMClaude/skin`. The script's
-`ICONS` list has the names the app looks for. If an icon also has a
-`<name>-hover` image, the button switches to it while the pointer is over it,
-as AIM did. Anything missing falls back to an SF Symbol or plain text, and a
+The script copies the three folders unchanged into
+`~/Library/Application Support/AIMClaude/skin`, replacing the previous skin. It then
+reports which of the names in its `ICONS` and `SOUNDS` lists it couldn't find. If an
+icon also has a `<name>-hover` image, the button switches to it while the pointer is
+over it, as AIM did. Anything missing falls back to an SF Symbol or plain text, and a
 missing sound simply doesn't play.
 
 ## Where data lives

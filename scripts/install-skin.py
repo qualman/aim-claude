@@ -1,89 +1,64 @@
 #!/usr/bin/env python3 -I
-"""Copy AIM art, sounds and fonts from a local assets folder into the app's skin folder.
+"""Copy your AIM art, sounds and fonts into the app's skin folder.
 
-Nothing here is bundled with the app: you supply the assets folder yourself, laid out as
+Nothing here is bundled with the app. Name your files to match what the app looks for
+(lists below) and lay them out as
 
-    <assets>/icons/<name>.png|gif    e.g. send.png, send-hover.png, signon-disabled.png
-    <assets>/icons/logo.png          the running man, used where a banner is missing
-    <assets>/sounds/BuddyIn.wav, BuddyOut.wav, received.mp3, sent.mp3
+    <assets>/icons/<name>.png|gif           e.g. send.png, send-hover.png, logo.png
+    <assets>/sounds/<cue>.wav|mp3|aiff|m4a  buddy-in, buddy-out, received, sent
     <assets>/fonts/*.woff2|woff|ttf|otf
 
     scripts/install-skin.py ~/Downloads/aim_assets
 
-Icon names are what the app asks for; a "-hover" twin is shown while the pointer is over the
-button. GIFs are converted to PNG. Anything missing falls back to an SF Symbol or text.
+The three folders are copied as they are, replacing the previous skin. A "<name>-hover"
+image is shown while the pointer is over that button. Anything missing falls back to an
+SF Symbol or text; a missing sound doesn't play.
 """
-import os, shutil, subprocess, sys
+import os, shutil, sys
 
 SKIN = os.path.expanduser("~/Library/Application Support/AIMClaude/skin")
+FOLDERS = ["icons", "sounds", "fonts"]
 
-# Icons the app uses. Each may also have <name>-hover (and the app asks for signon-disabled).
-ICONS = ["signon-banner", "buddylist-banner", "screenname-label", "help", "setup", "signon",
+# Names the app asks for. Any of these may also have a "-hover" twin.
+ICONS = ["logo", "signon-banner", "buddylist-banner", "screenname-label", "help", "setup", "signon",
          "signon-disabled", "buddylist-im", "add-small", "runner-small", "tree-open", "buddy-robot",
          "fmt-color", "fmt-background", "fmt-smaller", "fmt-normal", "fmt-bigger", "fmt-bold",
          "fmt-italic", "fmt-underline", "fmt-link", "fmt-image", "fmt-smiley",
          "warn", "block", "add-buddy", "get-info", "send"]
-
-# <assets>/sounds/<file> -> skin name. These are the only sounds the app plays.
-SOUNDS = {"BuddyIn.wav": "door-open.wav", "BuddyOut.wav": "door-close.wav",
-          "received.mp3": "received.mp3", "sent.mp3": "sent.mp3"}
-# Files earlier versions installed; removed so nothing stale is used.
-RETIRED = ["im.wav", "welcome.wav", "goodbye.wav", "icons/im.png"]
-FONT_EXTS = (".woff2", ".woff", ".ttf", ".otf")
+SOUNDS = ["buddy-in", "buddy-out", "received", "sent"]
+IMAGE_TYPES = (".png", ".gif")
+SOUND_TYPES = (".wav", ".mp3", ".aiff", ".m4a")
 
 
-def install_icon(src, dest):
-    if src.lower().endswith(".png"):
-        shutil.copy(src, dest)
-    else:
-        subprocess.run(["sips", "-s", "format", "png", src, "--out", dest], check=True, capture_output=True)
+def stems(folder, types):
+    if not os.path.isdir(folder):
+        return set()
+    return {os.path.splitext(f)[0] for f in os.listdir(folder) if f.lower().endswith(types)}
 
 
 def main(root):
-    icons_src = os.path.join(root, "icons")
-    if not os.path.isdir(icons_src):
-        sys.exit(f"no icons folder at {icons_src}")
-    os.makedirs(os.path.join(SKIN, "icons"), exist_ok=True)
-    os.makedirs(os.path.join(SKIN, "fonts"), exist_ok=True)
+    if not any(os.path.isdir(os.path.join(root, f)) for f in FOLDERS):
+        sys.exit(f"no icons, sounds or fonts folder in {root}")
+    # Replace the whole skin so files from older layouts or removed assets don't linger.
+    if os.path.isdir(SKIN):
+        shutil.rmtree(SKIN)
+    os.makedirs(SKIN)
+    ignore = shutil.ignore_patterns(".DS_Store")
+    for f in FOLDERS:
+        src = os.path.join(root, f)
+        if os.path.isdir(src):
+            shutil.copytree(src, os.path.join(SKIN, f), ignore=ignore)
 
-    available = {}
-    for f in os.listdir(icons_src):
-        stem, ext = os.path.splitext(f)
-        if ext.lower() in (".png", ".gif") and os.path.isfile(os.path.join(icons_src, f)):
-            if stem not in available or ext.lower() == ".png":
-                available[stem] = os.path.join(icons_src, f)
-    wanted = ICONS + [n + "-hover" for n in ICONS]
-    installed = [n for n in wanted if n in available]
-    for n in installed:
-        install_icon(available[n], os.path.join(SKIN, "icons", n + ".png"))
-
-    logo = os.path.join(icons_src, "logo.png")
-    if os.path.isfile(logo):
-        shutil.copy(logo, os.path.join(SKIN, "logo.png"))
-
-    fonts_src = os.path.join(root, "fonts")
-    fonts = sorted(f for f in os.listdir(fonts_src) if f.lower().endswith(FONT_EXTS)) if os.path.isdir(fonts_src) else []
-    for f in fonts:
-        shutil.copy(os.path.join(fonts_src, f), os.path.join(SKIN, "fonts", f))
-
-    for name in RETIRED:
-        if os.path.exists(os.path.join(SKIN, name)):
-            os.remove(os.path.join(SKIN, name))
-    sounds = os.path.join(root, "sounds")
-    copied = []
-    for src, dst in SOUNDS.items():
-        path = os.path.join(sounds, src)
-        if os.path.exists(path):
-            shutil.copy(path, os.path.join(SKIN, dst))
-            copied.append(dst + ("  (warning: only %d bytes, probably not playable)" % os.path.getsize(path)
-                                 if os.path.getsize(path) < 100 else ""))
-
-    hovers = sum(n.endswith("-hover") for n in installed)
-    missing = [n for n in ICONS if n not in available]
-    print(f"icons: {len(installed) - hovers}/{len(ICONS)} (+{hovers} hover)  logo: {os.path.isfile(logo)}  fonts: {len(fonts)}  skin: {SKIN}")
-    print("sounds:", *copied, sep="\n  ")
+    icons = stems(os.path.join(SKIN, "icons"), IMAGE_TYPES)
+    sounds = stems(os.path.join(SKIN, "sounds"), SOUND_TYPES)
+    hovers = [n for n in ICONS if n + "-hover" in icons]
+    fonts = os.listdir(os.path.join(SKIN, "fonts")) if os.path.isdir(os.path.join(SKIN, "fonts")) else []
+    print(f"skin: {SKIN}")
+    print(f"icons: {len([n for n in ICONS if n in icons])}/{len(ICONS)} (+{len(hovers)} hover)  "
+          f"sounds: {len([s for s in SOUNDS if s in sounds])}/{len(SOUNDS)}  fonts: {len(fonts)}")
+    missing = [n for n in ICONS if n not in icons] + [f"sounds/{s}" for s in SOUNDS if s not in sounds]
     if missing:
-        print("missing (app will use fallbacks):", ", ".join(missing))
+        print("missing (fallbacks used):", ", ".join(missing))
 
 
 if __name__ == "__main__":

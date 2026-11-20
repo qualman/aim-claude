@@ -5,34 +5,32 @@ import Testing
 @Suite struct SkinStoreTests {
     private func dir() throws -> URL {
         let d = FileManager.default.temporaryDirectory.appendingPathComponent("aim-skin-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        for sub in ["icons", "sounds", "fonts"] {
+            try FileManager.default.createDirectory(at: d.appendingPathComponent(sub), withIntermediateDirectories: true)
+        }
         return d
     }
 
-    @Test func returnsPresentFile() throws {
+    @Test func soundFoundByCueNameInAnyFormat() throws {
         let d = try dir()
-        try Data([1]).write(to: d.appendingPathComponent("received.mp3"))
-        #expect(SkinStore(directory: d).url(for: .received)?.lastPathComponent == "received.mp3")
-        #expect(SkinStore(directory: d).url(for: .doorOpen) == nil)
+        try Data([1]).write(to: d.appendingPathComponent("sounds/buddy-in.wav"))
+        try Data([1]).write(to: d.appendingPathComponent("sounds/received.m4a"))
+        let s = SkinStore(directory: d)
+        #expect(s.sound(.buddyIn)?.lastPathComponent == "buddy-in.wav")
+        #expect(s.sound(.received)?.lastPathComponent == "received.m4a")
+        #expect(s.sound(.sent) == nil)
     }
 
-    @Test func emptyDirectoryHasNothing() throws {
-        let s = SkinStore(directory: try dir())
-        for a in SkinAsset.allCases { #expect(s.url(for: a) == nil) }
+    @Test func emptyOrMissingDirectoryHasNothing() throws {
+        for s in [SkinStore(directory: try dir()), SkinStore(directory: URL(fileURLWithPath: "/tmp/aim-nope-\(UUID().uuidString)"))] {
+            for c in SoundCue.allCases { #expect(s.sound(c) == nil) }
+            #expect(s.icon("logo") == nil)
+            #expect(s.fonts().isEmpty)
+        }
     }
 
-    @Test func missingDirectoryHasNothing() {
-        let s = SkinStore(directory: URL(fileURLWithPath: "/tmp/aim-nope-\(UUID().uuidString)"))
-        #expect(s.url(for: .logo) == nil)
-    }
-
-    @Test func cueMapsToSkinFile() {
-        #expect(SoundCue.buddyIn.asset == .doorOpen)
-        #expect(SoundCue.buddyOut.asset == .doorClose)
-        #expect(SoundCue.received.asset == .received)
-        #expect(SoundCue.sent.asset == .sent)
-        #expect(SkinAsset.received.rawValue == "received.mp3")
-        #expect(SkinAsset.sent.rawValue == "sent.mp3")
+    @Test func cueFileNames() {
+        #expect(SoundCue.allCases.map(\.fileName) == ["buddy-in", "buddy-out", "received", "sent"])
     }
 }
 
@@ -50,6 +48,16 @@ import Testing
         let s = SkinStore(directory: d)
         #expect(s.icon("send")?.lastPathComponent == "send.png")
         #expect(s.icon("warn") == nil)
+    }
+
+    @Test func gifIconsWorkAndPNGWins() throws {
+        let d = try dir()
+        try Data([1]).write(to: d.appendingPathComponent("icons/tree-open.gif"))
+        try Data([1]).write(to: d.appendingPathComponent("icons/logo.gif"))
+        try Data([1]).write(to: d.appendingPathComponent("icons/logo.png"))
+        let s = SkinStore(directory: d)
+        #expect(s.icon("tree-open")?.lastPathComponent == "tree-open.gif")
+        #expect(s.icon("logo")?.lastPathComponent == "logo.png")
     }
 
     @Test func iconNameCannotEscapeSkinFolder() throws {
