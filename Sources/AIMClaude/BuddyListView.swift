@@ -16,17 +16,20 @@ struct BuddyListView: View {
     let skin: SkinStore
     var attention: Set<UUID> = []
     let actions: BuddyListActions
-    private let selection = State<UUID?>(initialValue: nil)
+    private let selection: State<UUID?>
     private let buddiesOpen = State(initialValue: true)
 
-    init(app: AppController, skin: SkinStore, attention: Set<UUID> = [], actions: BuddyListActions) {
+    init(app: AppController, skin: SkinStore, attention: Set<UUID> = [], selected: UUID? = nil,
+         actions: BuddyListActions) {
         self.app = app
         self.skin = skin
         self.attention = attention
+        self.selection = State(initialValue: selected)
         self.actions = actions
     }
 
-    private var target: UUID? { selection.wrappedValue ?? app.state.buddies.first?.id }
+    /// The selected buddy. Nothing is selected after a click on empty space, and IM / Info then do nothing.
+    private var target: UUID? { selection.wrappedValue.flatMap { id in app.state.buddies.contains { $0.id == id } ? id : nil } }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,9 +53,7 @@ struct BuddyListView: View {
             }
             EtchedRule()
             banner.padding(.vertical, 6)
-            tabs
-            list
-            toolbar
+            tabPanel
         }
         .background(AIMColors.window)
         .frame(minWidth: 210, minHeight: 380)
@@ -74,24 +75,39 @@ struct BuddyListView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var tabs: some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            Text("Online").font(AIMFonts.labelBold)
-                .padding(.horizontal, 10).padding(.top, 4).padding(.bottom, 3)
-                .background(AIMColors.window)
-                .modifier(Bevel.raised)
-            Text("List Setup").font(AIMFonts.label)
-                .padding(.horizontal, 8).padding(.vertical, 2)
-                .background(AIMColors.window)
-                .modifier(Bevel.raised)
-            Spacer()
+    /// Win98 tab control: the Online tab joins a raised panel that holds the list and the toolbar.
+    private var tabPanel: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .bottom, spacing: 0) {
+                Text("Online").font(AIMFonts.labelBold)
+                    .padding(.horizontal, 10).padding(.top, 4).padding(.bottom, 5)
+                    .background(AIMColors.window)
+                    .overlay(TabEdges())
+                    // Reaches 2 pt into the panel, covering its top edge so the tab and panel read as one.
+                    .padding(.bottom, -2)
+                    .zIndex(1)
+                Text("List Setup").font(AIMFonts.label)
+                    .padding(.horizontal, 7).padding(.top, 2).padding(.bottom, 2)
+                    .background(AIMColors.window)
+                    .overlay(TabEdges())
+                Spacer()
+            }
+            .zIndex(1)
+            VStack(spacing: 4) {
+                list
+                toolbar
+            }
+            .padding(.top, 6).padding(.horizontal, 6)
+            .background(AIMColors.window)
+            .modifier(Bevel.raised)
         }
         .padding(.horizontal, 6)
+        .padding(.bottom, 6)
     }
 
     private var list: some View {
         let n = app.state.buddies.count
-        return ScrollView {
+        return GeometryReader { geo in ScrollView {
             VStack(alignment: .leading, spacing: 2) {
                 groupRow(open: buddiesOpen.wrappedValue, title: "Buddies (\(n)/\(n))") { buddiesOpen.wrappedValue.toggle() }
                 if buddiesOpen.wrappedValue {
@@ -102,11 +118,13 @@ struct BuddyListView: View {
                 groupRow(open: true, title: "Offline (0/0)") {}
             }
             .padding(6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+            // Fill the visible area so a click anywhere below the rows lands here and clears the selection.
+            .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .onTapGesture { selection.wrappedValue = nil }
+        } }
         .background(AIMColors.field)
         .modifier(Bevel.sunken)
-        .padding(.horizontal, 6)
     }
 
     private func groupRow(open: Bool, title: String, toggle: @escaping () -> Void) -> some View {
@@ -145,15 +163,40 @@ struct BuddyListView: View {
     }
 
     private var toolbar: some View {
-        HStack(spacing: 6) {
+        HStack(alignment: .center, spacing: 12) {
             SkinButton(icon: "buddylist-im", title: "Send Instant Message", fallback: "bubble.left") {
                 if let t = target { actions.openChat(t) }
             }
+            .disabled(target == nil)
             SkinButton(icon: "add-small", title: "Add Buddy", fallback: "person.badge.plus", action: actions.addBuddy)
-            SkinButton(icon: "runner-small", title: "Sign Off", fallback: "door.left.hand.open", action: actions.signOff)
+            SkinButton(icon: "buddylist-info", title: "Get Buddy Info", fallback: "person.text.rectangle") {
+                if let t = target { actions.getInfo(t) }
+            }
+            .disabled(target == nil)
             Spacer()
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
+        .frame(height: 30)
+        .padding(.horizontal, 4)
+    }
+}
+
+/// A Win98 tab's raised edges on the top and sides, open at the bottom.
+private struct TabEdges: View {
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width, h = size.height
+            func line(_ x: CGFloat, _ y: CGFloat, _ lw: CGFloat, _ lh: CGFloat, _ c: Color) {
+                ctx.fill(Path(CGRect(x: x, y: y, width: lw, height: lh)), with: .color(c))
+            }
+            line(0, 2, 1, h - 2, AIMColors.highlight)        // left
+            line(1, 1, 1, 1, AIMColors.highlight)            // rounded corner
+            line(2, 0, w - 4, 1, AIMColors.highlight)        // top
+            line(1, 2, 1, h - 2, AIMColors.light)
+            line(2, 1, w - 4, 1, AIMColors.light)
+            line(w - 1, 2, 1, h - 2, AIMColors.darkShadow)   // right
+            line(w - 2, 1, 1, 1, AIMColors.darkShadow)
+            line(w - 2, 2, 1, h - 2, AIMColors.shadow)
+        }
+        .allowsHitTesting(false)
     }
 }
