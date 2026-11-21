@@ -92,6 +92,7 @@ Any button icon can also have two optional variants:
 | `tree-open` | The open-group arrow in the Buddy List (turned sideways when the group is closed) |
 | `buddylist-im` | Buddy List toolbar: send an IM to the selected buddy |
 | `add-small` | Buddy List toolbar: Add Buddy |
+| `buddylist-remove` | Buddy List toolbar: Remove Buddy (ends the selected buddy's Claude session and deletes its chat history) |
 | `buddylist-info` | Buddy List toolbar: Get Info on the selected buddy |
 | `buddy-robot` | The buddy icon on the left of a chat window |
 | `fmt-color`, `fmt-background` | Chat formatting bar: text color, background color |

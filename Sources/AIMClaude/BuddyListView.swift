@@ -4,6 +4,7 @@ import SwiftUI
 struct BuddyListActions {
     var openChat: (UUID) -> Void = { _ in }
     var addBuddy: () -> Void = {}
+    var removeBuddy: (UUID) -> Void = { _ in }
     var signOff: () -> Void = {}
     var changeScreenName: () -> Void = {}
     var preferences: () -> Void = {}
@@ -45,6 +46,8 @@ struct BuddyListView: View {
                     Button("Send Instant Message") { if let t = target { actions.openChat(t) } }
                         .disabled(target == nil)
                     Button("Get Buddy Info") { if let t = target { actions.getInfo(t) } }
+                        .disabled(target == nil)
+                    Button("Remove Buddy…") { if let t = target { actions.removeBuddy(t) } }
                         .disabled(target == nil)
                 }
                 StripMenu(title: "Help") {
@@ -169,6 +172,10 @@ struct BuddyListView: View {
             }
             .disabled(target == nil)
             SkinButton(icon: "add-small", title: "Add Buddy", fallback: "person.badge.plus", action: actions.addBuddy)
+            SkinButton(icon: "buddylist-remove", title: "Remove Buddy", fallback: "person.badge.minus") {
+                if let t = target { actions.removeBuddy(t) }
+            }
+            .disabled(target == nil)
             SkinButton(icon: "buddylist-info", title: "Get Buddy Info", fallback: "person.text.rectangle") {
                 if let t = target { actions.getInfo(t) }
             }

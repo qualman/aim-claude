@@ -2,6 +2,8 @@ import Foundation
 
 public protocol BuddyChanneling: Actor {
     func send(_ text: String) -> AsyncStream<ClaudeEvent>
+    /// Stops the running turn's process and drops queued turns. Later sends do nothing.
+    func close()
 }
 
 /// One buddy's line to the claude CLI: one process per turn, turns run in order.
@@ -17,6 +19,8 @@ public actor BuddyChannel: BuddyChanneling {
     private let inactivityTimeout: Duration
     private var tail: Task<Void, Never>?
     private var lastActivity = ContinuousClock.now
+    private var running: (any RunningProcess)?
+    private var closed = false
 
     /// Longer than claude's 10-minute maximum tool runtime: stream-json is silent while a tool runs.
     public static let defaultInactivityTimeout: Duration = .seconds(660)
@@ -49,14 +53,21 @@ public actor BuddyChannel: BuddyChanneling {
         return stream
     }
 
+    public func close() {
+        closed = true
+        running?.terminate()
+        running = nil
+    }
+
     private func runTurn(_ text: String, _ cont: AsyncStream<ClaudeEvent>.Continuation) async {
+        guard !closed else { return }
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: workingDirectory.path, isDirectory: &isDir), isDir.boolValue else {
             cont.yield(.failure("The folder \(workingDirectory.path) no longer exists."))
             return
         }
         var retried = false
-        while true {
+        while !closed {
             let outcome = await attempt(text, cont)
             switch outcome {
             case .done:
@@ -83,6 +94,8 @@ public actor BuddyChannel: BuddyChanneling {
                                       workingDirectory: workingDirectory,
                                       environment: ["MCP_TOOL_TIMEOUT": "86400000"],
                                       stdin: Self.stdinLine(text))
+        running = process
+        defer { running = nil }
         lastActivity = .now
         let timeout = inactivityTimeout
         let watchdog = Task {
@@ -125,6 +138,8 @@ public actor BuddyChannel: BuddyChanneling {
             cont.yield(.failure("Timed out after \(Self.seconds(timeout)) s with no activity."))
             return .done
         }
+        // Closed (the buddy was removed): the process was killed on purpose, so report nothing.
+        if closed { return .done }
         if let f = failure {
             // claude reports some errors on stderr and some in result.errors; check both.
             let reported = pending.compactMap { if case .failure(let m) = $0 { m } else { nil } }.joined(separator: "; ")

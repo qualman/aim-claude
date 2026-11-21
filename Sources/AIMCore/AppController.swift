@@ -71,6 +71,14 @@ public final class AppController {
         return b
     }
 
+    /// Drops the buddy and its chat history. The caller stops its claude process first.
+    public func removeBuddy(_ id: UUID) {
+        guard state.buddies.contains(where: { $0.id == id }) else { return }
+        state.buddies.removeAll { $0.id == id }
+        save()
+        sounds.play(.buddyOut)
+    }
+
     public func buddy(_ id: UUID) -> Buddy? {
         state.buddies.first { $0.id == id }
     }

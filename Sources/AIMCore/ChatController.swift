@@ -21,6 +21,7 @@ public final class ChatController {
     /// The claude path `channel` was built with; a different one (from Preferences) rebuilds it.
     @ObservationIgnored private var channelClaudePath: URL?
     @ObservationIgnored private var tail: Task<Void, Never>?
+    @ObservationIgnored private var closed = false
 
     public init(buddyID: UUID, app: AppController, makeChannel: @escaping @MainActor () -> (any BuddyChanneling)?) {
         self.buddyID = buddyID
@@ -34,6 +35,16 @@ public final class ChatController {
     public var needsAttention: Bool { !pendingPermissions.isEmpty }
 
     public static let signedOffDenial = "The AIM user is signed off."
+    public static let removedDenial = "The AIM user removed this buddy."
+
+    /// Ends this buddy's session for good: denies open prompts, stops the running claude
+    /// process and drops queued turns. Used when the buddy is removed.
+    public func close() async {
+        closed = true
+        denyAllPermissions(Self.removedDenial)
+        await channel?.close()
+        channel = nil
+    }
 
     /// Returns false when the request was denied on the spot because the user is signed off.
     @discardableResult
@@ -72,7 +83,7 @@ public final class ChatController {
     @discardableResult
     public func send(_ raw: String) -> Task<Void, Never>? {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return nil }
+        guard !text.isEmpty, !closed else { return nil }
         append(.user, text)
         app.sounds.play(.sent)
         inFlight += 1
@@ -93,6 +104,7 @@ public final class ChatController {
 
     private func run(_ text: String) async {
         await app.claudeLocated()
+        guard !closed else { return }
         if channel == nil || channelClaudePath != app.claudePath {
             channel = makeChannel()
             channelClaudePath = app.claudePath

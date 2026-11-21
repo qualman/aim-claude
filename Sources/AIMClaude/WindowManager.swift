@@ -123,6 +123,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
         BuddyListView(app: app, skin: skin, attention: attention, actions: BuddyListActions(
             openChat: { [weak self] in self?.openChat($0) },
             addBuddy: { [weak self] in self?.addBuddy() },
+            removeBuddy: { [weak self] in self?.confirmRemoveBuddy($0) },
             signOff: { [weak self] in self?.signOff() },
             changeScreenName: { [weak self] in self?.changeScreenName() },
             preferences: { [weak self] in self?.showPreferences() },
@@ -208,6 +209,33 @@ final class WindowManager: NSObject, NSWindowDelegate {
         let b = app.addBuddy(workingDirectory: url)
         refreshBuddyList()
         openChat(b.id)
+    }
+
+    func confirmRemoveBuddy(_ id: UUID) {
+        guard let b = app.buddy(id) else { return }
+        var window: NSWindow?
+        let view = AIMDialog(message: "Remove \(b.screenName)?\n\nThis ends its Claude session, stopping anything it's running, and deletes the chat history. Files in \(b.workingDirectory.path) aren't touched.",
+                             symbol: "person.fill.xmark", primary: "Remove", secondary: "Cancel",
+                             onPrimary: { [weak self] in window?.close(); self?.removeBuddy(id) },
+                             onSecondary: { window?.close() })
+        window = makeWindow(title: "Remove Buddy", resizable: false, view: view)
+        dialogs.append(window!)
+        window?.center()
+        window?.makeKeyAndOrderFront(nil)
+    }
+
+    func removeBuddy(_ id: UUID) {
+        let chat = chats.removeValue(forKey: id)
+        chatWindows.removeValue(forKey: id)?.close()
+        attention.remove(id)
+        app.removeBuddy(id)
+        server?.removeConfig(for: id)
+        refreshBuddyList()
+        let broker = broker
+        Task {
+            await chat?.close()
+            await broker.cancelAll(buddyID: id)
+        }
     }
 
     func signOff() {

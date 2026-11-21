@@ -22,7 +22,7 @@ FOLDERS = ["icons", "sounds", "fonts"]
 # Names the app asks for (the README has a table of where each appears). Buttons may also
 # have "-hover" and "-disabled" variants.
 ICONS = ["logo", "signon-banner", "buddylist-banner", "screenname-label", "help", "setup", "signon",
-         "signon-disabled", "buddylist-im", "add-small", "buddylist-info", "tree-open", "buddy-robot",
+         "signon-disabled", "buddylist-im", "add-small", "buddylist-remove", "buddylist-info", "tree-open", "buddy-robot",
          "fmt-color", "fmt-background", "fmt-smaller", "fmt-normal", "fmt-bigger", "fmt-bold",
          "fmt-italic", "fmt-underline", "fmt-link", "fmt-image", "fmt-smiley",
          "warn", "block", "add-buddy", "get-info", "send"]
