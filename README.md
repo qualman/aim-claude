@@ -35,6 +35,10 @@ open ~/Applications/AIMClaude.app
 A rebuild doesn't update the copy in `~/Applications`, so run `ditto` again
 after each build.
 
+The app icon is an original running figure drawn in code by
+`scripts/make-icon.swift`. Run `swift scripts/make-icon.swift` to regenerate
+`Resources/AppIcon.icns` after changing it.
+
 ## Tests
 
 ```sh
