@@ -57,6 +57,11 @@ public final class MCPServer: Sendable {
         return file
     }
 
+    /// Deletes a removed buddy's config file.
+    public func removeConfig(for buddyID: UUID) {
+        try? FileManager.default.removeItem(at: configDirectory.appendingPathComponent("\(buddyID.uuidString.lowercased()).json"))
+    }
+
     // MARK: HTTP
 
     private func receive(_ c: NWConnection, buffer: Data) {

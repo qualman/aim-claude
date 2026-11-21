@@ -12,11 +12,13 @@ enum RenderMode {
         let app = AppController(store: StateStore(directory: tmp), sounds: SilentSoundPlayer())
         app.signOn(screenName: "SkaterBoi99")
         let a = app.addBuddy(workingDirectory: URL(fileURLWithPath: "/tmp"))
-        app.addBuddy(workingDirectory: URL(fileURLWithPath: "/tmp"))
+        let b = app.addBuddy(workingDirectory: URL(fileURLWithPath: "/tmp"))
         return [
             ("gallery", AnyView(LookGallery())),
             ("signon", AnyView(SignOnView(app: app, skin: skin) {})),
             ("buddylist", AnyView(BuddyListView(app: app, skin: skin, attention: [a.id], actions: BuddyListActions())
+                .frame(width: 240, height: 520))),
+            ("buddylist-selected", AnyView(BuddyListView(app: app, skin: skin, selected: b.id, actions: BuddyListActions())
                 .frame(width: 240, height: 520))),
             ("dialog", AnyView(AIMDialog(message: "AIM couldn't find the claude command. Install Claude Code, or set its path in Preferences.") {})),
         ] + extraScreens(app: app, skin: skin)

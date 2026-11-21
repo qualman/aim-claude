@@ -6,7 +6,9 @@ import Testing
 actor FakeChannel: BuddyChanneling {
     var scripts: [[ClaudeEvent]]
     private(set) var sent: [String] = []
+    private(set) var closed = false
     init(_ scripts: [[ClaudeEvent]]) { self.scripts = scripts }
+    func close() { closed = true }
     func send(_ text: String) -> AsyncStream<ClaudeEvent> {
         sent.append(text)
         let events = scripts.isEmpty ? [] : scripts.removeFirst()

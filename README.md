@@ -56,13 +56,13 @@ AIM_LIVE=1 scripts/test.sh
 ## Skin (art, sounds, fonts)
 
 This repo includes no AOL artwork or sounds. If you have your own copies, name them
-to match what the app looks for and lay them out like this:
+to match the tables below and lay them out like this:
 
 ```
 aim_assets/
-  icons/   <name>.png or .gif: send, send-hover, signon-disabled, buddylist-im, logo, ...
-  sounds/  buddy-in, buddy-out, received, sent (.wav, .mp3, .aiff or .m4a)
-  fonts/   *.woff2 / .woff / .ttf / .otf
+  icons/   <name>.png or .gif
+  sounds/  <name>.wav, .mp3, .aiff or .m4a
+  fonts/   any .woff2, .woff, .ttf or .otf
 ```
 
 Then install them:
@@ -72,11 +72,59 @@ scripts/install-skin.py ~/path/to/aim_assets
 ```
 
 The script copies the three folders unchanged into
-`~/Library/Application Support/AIMClaude/skin`, replacing the previous skin. It then
-reports which of the names in its `ICONS` and `SOUNDS` lists it couldn't find. If an
-icon also has a `<name>-hover` image, the button switches to it while the pointer is
-over it, as AIM did. Anything missing falls back to an SF Symbol or plain text, and a
-missing sound simply doesn't play.
+`~/Library/Application Support/AIMClaude/skin`, replacing the previous skin, and lists
+any names below that it couldn't find. A missing icon falls back to an SF Symbol or
+plain text, and a missing sound simply doesn't play.
+
+Any button icon can also have two optional variants:
+- `<name>-hover`: shown while the pointer is over the button, as AIM did.
+- `<name>-disabled`: shown while the button can't be used. Without it, the normal image
+  is drawn faded.
+
+### Icons (`icons/`)
+
+| File | Where it appears |
+|---|---|
+| `logo` | The running-man logo: the Sign On window when there's no `signon-banner`, and the Buddy List when there's no `buddylist-banner` |
+| `signon-banner` | The large banner at the top of the Sign On window |
+| `screenname-label` | The "ScreenName" label above the screen-name field |
+| `help` | Sign On window: Help button (opens About) |
+| `setup` | Sign On window: Setup button (opens Preferences) |
+| `signon` | Sign On window: Sign On button |
+| `signon-disabled` | The Sign On button while the screen name is empty |
+| `buddylist-banner` | The banner at the top of the Buddy List |
+| `tree-open` | The open-group arrow in the Buddy List (turned sideways when the group is closed) |
+| `buddylist-im` | Buddy List toolbar: send an IM to the selected buddy |
+| `add-small` | Buddy List toolbar: Add Buddy |
+| `buddylist-remove` | Buddy List toolbar: Remove Buddy (ends the selected buddy's Claude session and deletes its chat history) |
+| `buddylist-info` | Buddy List toolbar: Get Info on the selected buddy |
+| `buddy-robot` | The buddy icon on the left of a chat window |
+| `fmt-color`, `fmt-background` | Chat formatting bar: text color, background color |
+| `fmt-smaller`, `fmt-normal`, `fmt-bigger` | Chat formatting bar: text size |
+| `fmt-bold`, `fmt-italic`, `fmt-underline` | Chat formatting bar: text style |
+| `fmt-link`, `fmt-image`, `fmt-smiley` | Chat formatting bar: link, picture, smiley |
+| `warn` | Chat window: Warn button |
+| `block` | Chat window: Block button |
+| `add-buddy` | Chat window: Add Buddy button |
+| `get-info` | Chat window: Get Info button |
+| `send` | Chat window: Send button |
+
+The formatting bar is decorative, because Claude reads plain text.
+
+### Sounds (`sounds/`)
+
+| File | Plays when |
+|---|---|
+| `buddy-in` | You sign on, or a buddy is added (the door opening) |
+| `buddy-out` | You sign off (the door closing) |
+| `received` | A buddy's reply arrives, or a buddy asks permission to use a tool |
+| `sent` | You send a message |
+
+### Fonts (`fonts/`)
+
+Every font in this folder is loaded when the app starts. The app looks for the family
+`MS Sans Serif` (PostScript name `MS-Sans-Serif`) and uses Verdana if that isn't
+there.
 
 ## Where data lives
 

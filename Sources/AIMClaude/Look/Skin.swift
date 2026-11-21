@@ -73,14 +73,18 @@ struct SkinButton: View {
     }
 
     var body: some View {
-        if let normal = Skin.image(icon) {
+        if let art = Skin.image(icon) {
+            // Disabled: the "<icon>-disabled" art if there is one, otherwise the normal art faded.
+            let disabledArt = isEnabled ? nil : Skin.image(icon + "-disabled")
+            let normal = disabledArt ?? art
             let hover = Skin.image(icon + "-hover")
             let showHover = hover != nil && (hovering.wrappedValue || Self.previewHover) && isEnabled
             Button(action: action) {
                 // Both images stay in the view so it never changes identity mid-click, and the
                 // button keeps the larger of the two sizes so nothing shifts on hover.
                 ZStack(alignment: .topLeading) {
-                    Image(nsImage: normal).interpolation(.none).opacity(showHover ? 0 : 1)
+                    Image(nsImage: normal).interpolation(.none)
+                        .opacity(showHover ? 0 : (isEnabled || disabledArt != nil ? 1 : 0.4))
                     if let hover { Image(nsImage: hover).interpolation(.none).opacity(showHover ? 1 : 0) }
                 }
             }
