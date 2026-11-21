@@ -15,6 +15,9 @@ public final class AppController {
     /// Called once when saving starts failing, and again only after a save has succeeded since.
     @ObservationIgnored public var onSaveError: ((String) -> Void)?
 
+    /// Set while you're away. Not saved: relaunching the app brings you back.
+    public private(set) var away: AwayStatus?
+
     @ObservationIgnored private var locatorWaiters: [CheckedContinuation<Void, Never>] = []
 
     @ObservationIgnored private let store: StateStore
@@ -44,14 +47,60 @@ public final class AppController {
         state.screenName = name
         state.signedOn = true
         save()
-        sounds.play(.buddyIn)
+        playSound(.buddyIn)
         return true
     }
 
     public func signOff() {
+        away = nil
         state.signedOn = false
         save()
-        sounds.play(.buddyOut)
+        playSound(.buddyOut)
+    }
+
+    /// Every cue goes through here so "Disable sounds while I'm Away" can mute it.
+    public func playSound(_ cue: SoundCue) {
+        if away?.muteSounds == true { return }
+        sounds.play(cue)
+    }
+
+    // MARK: Away
+
+    /// Goes away with `message` (%d / %t expanded to now). With `save`, it's kept for later,
+    /// replacing a saved message with the same label.
+    public func goAway(_ message: AwayMessage, save keep: Bool, at date: Date = Date()) {
+        var m = message
+        m.label = m.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        if m.label.isEmpty { m.label = String(m.text.split(whereSeparator: \.isNewline).first ?? "Away").prefix(30).description }
+        if keep {
+            if let i = state.savedAwayMessages.firstIndex(where: { $0.label == m.label }) {
+                m.id = state.savedAwayMessages[i].id
+                state.savedAwayMessages[i] = m
+            } else {
+                state.savedAwayMessages.append(m)
+            }
+            save()
+        }
+        // Switching messages while away keeps the count and the options.
+        if away != nil { away?.message = m } else { away = AwayStatus(message: m, since: date) }
+    }
+
+    public func comeBack() { away = nil }
+
+    public func setAwayOptions(hideWindows: Bool? = nil, muteSounds: Bool? = nil) {
+        if let hideWindows { away?.hideWindows = hideWindows }
+        if let muteSounds { away?.muteSounds = muteSounds }
+    }
+
+    public func deleteSavedAwayMessage(_ id: UUID) {
+        state.savedAwayMessages.removeAll { $0.id == id }
+        save()
+    }
+
+    /// A buddy replied. Counted only while away.
+    public func noteBuddyMessage(_ id: UUID, at date: Date = Date()) {
+        guard away != nil, let b = buddy(id) else { return }
+        away?.record(buddyID: id, screenName: b.screenName, at: date)
     }
 
     public func setScreenName(_ name: String) {
@@ -67,7 +116,7 @@ public final class AppController {
                       workingDirectory: workingDirectory)
         state.buddies.append(b)
         save()
-        sounds.play(.buddyIn)
+        playSound(.buddyIn)
         return b
     }
 
@@ -76,7 +125,7 @@ public final class AppController {
         guard state.buddies.contains(where: { $0.id == id }) else { return }
         state.buddies.removeAll { $0.id == id }
         save()
-        sounds.play(.buddyOut)
+        playSound(.buddyOut)
     }
 
     public func buddy(_ id: UUID) -> Buddy? {

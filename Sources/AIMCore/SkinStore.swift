@@ -33,6 +33,15 @@ public struct SkinStore: Sendable {
         return files.filter { Self.fontTypes.contains($0.pathExtension.lowercased()) }
     }
 
+    /// icons/smileys/<face>-19.png, the size that sits on a line of text. Sorted by face name.
+    public func smileys() -> [(name: String, url: URL)] {
+        let dir = directory.appendingPathComponent("icons/smileys")
+        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+        return files.filter { $0.lastPathComponent.hasSuffix("-19.png") }
+            .map { (String($0.lastPathComponent.dropLast("-19.png".count)), $0) }
+            .sorted { $0.0 < $1.0 }
+    }
+
     private func find(_ folder: String, _ name: String, _ types: [String]) -> URL? {
         guard !name.isEmpty, name.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" }) else { return nil }
         for t in types {
