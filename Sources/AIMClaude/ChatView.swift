@@ -46,7 +46,7 @@ struct ChatView: View {
                             chat.resolvePermission(r.id, allow: allow)
                         }
                     }
-                    formattingBar
+                    FormattingBar()
                     input
                     buttonBar
                 }
@@ -102,34 +102,6 @@ struct ChatView: View {
                 .lineLimit(1).truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    /// AIM's font/link/image/smiley strip. Decorative: replies are plain text.
-    private var formattingBar: some View {
-        let groups: [[(String, String)]] = [
-            [("fmt-color", "A"), ("fmt-background", "A")],
-            [("fmt-smaller", "a"), ("fmt-normal", "A"), ("fmt-bigger", "A")],
-            [("fmt-bold", "B"), ("fmt-italic", "I"), ("fmt-underline", "U")],
-            [("fmt-link", "link"), ("fmt-image", "▣"), ("fmt-smiley", "☺")],
-        ]
-        return HStack(spacing: 0) {
-            Spacer(minLength: 0)
-            ForEach(groups.indices, id: \.self) { g in
-                if g > 0 { Rectangle().fill(AIMColors.shadow).frame(width: 1, height: 16).padding(.horizontal, 6) }
-                HStack(spacing: 10) {
-                    ForEach(groups[g], id: \.0) { icon, text in
-                        Group {
-                            if Skin.image(icon) != nil { SkinIcon(name: icon) } else { Text(text).font(AIMFonts.labelBold) }
-                        }
-                        .frame(height: 14)
-                    }
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, 5)
-        .modifier(Bevel.etched)
-        .help("Formatting isn't sent to Claude")
     }
 
     private var input: some View {

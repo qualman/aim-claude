@@ -69,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func changeScreenName(_ sender: Any?) { windows.changeScreenName() }
     @objc func addBuddy(_ sender: Any?) { windows.addBuddy() }
     @objc func signOff(_ sender: Any?) { windows.signOff() }
+    @objc func newAwayMessage(_ sender: Any?) { if windows.app.state.signedOn { windows.showAwayEditor() } }
 }
 
 MainActor.assumeIsolated {

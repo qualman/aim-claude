@@ -39,7 +39,25 @@ enum RenderMode {
         chat.apply(.activity("Reading build-app.sh"))
         chat.addPermission(PermissionRequest(id: UUID(), buddyID: b.id, toolName: "Bash", inputSummary: "Running: swift build -c release"))
         app.applyLocatorResult(.success(URL(fileURLWithPath: "/usr/local/bin/claude")))
-        return [("preferences", AnyView(PreferencesView(app: app) {})), ("chat", AnyView(ChatView(chat: chat, myName: { "SkaterBoi99" }).frame(width: 440, height: 420)))]
+        // Away: a styled saved message, then a few replies counted while away.
+        let styled = NSMutableAttributedString(string: "eating dinner ", attributes: [.font: RichTextController.baseFont])
+        let bold = NSFontManager.shared.convert(RichTextController.baseFont, toHaveTrait: .boldFontMask)
+        styled.append(NSAttributedString(string: "brb", attributes: [.font: NSFontManager.shared.convert(bold, toSize: 20), .foregroundColor: NSColor.blue]))
+        styled.append(NSAttributedString(string: " since %t", attributes: [.font: RichTextController.baseFont]))
+        let rich = styled.rtfd(from: NSRange(location: 0, length: styled.length), documentAttributes: [:]) ?? Data()
+        let editor = RichTextController()
+        editor.load(rich)
+        let msg = AwayMessage(label: "brb", rich: rich, text: styled.string)
+        app.goAway(msg, save: true, at: Date())
+        let second = app.state.buddies[1].id
+        for (id, ago) in [(b.id, 600.0), (second, 300.0), (b.id, 60.0)] { app.noteBuddyMessage(id, at: Date().addingTimeInterval(-ago)) }
+        let shown = RichTextController()
+        shown.load(rich)
+        let awayScreens: [(String, AnyView)] = [
+            ("away-editor", AnyView(AwayEditorView(app: app, editor: editor, label: "brb", onAway: { _, _ in }, onCancel: {}))),
+            ("away", AnyView(AwayWindowView(app: app, message: shown, onBack: {}, onHideWindows: { _ in }, onOpenChat: { _ in }))),
+        ]
+        return awayScreens + [("preferences", AnyView(PreferencesView(app: app) {})), ("chat", AnyView(ChatView(chat: chat, myName: { "SkaterBoi99" }).frame(width: 440, height: 420)))]
     }
 
     /// `--snapshot <dir>`: after launch, write each visible window (with its title bar) as PNG, then quit.

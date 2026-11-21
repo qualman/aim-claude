@@ -85,7 +85,7 @@ public final class ChatController {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !closed else { return nil }
         append(.user, text)
-        app.sounds.play(.sent)
+        app.playSound(.sent)
         inFlight += 1
         app.updateBuddy(buddyID) { $0.pendingTurn = true }
         let previous = tail
@@ -134,7 +134,8 @@ public final class ChatController {
             activity = nil
             append(.buddy, text)
             app.updateBuddy(buddyID) { $0.hasStartedSession = true }
-            app.sounds.play(.received)
+            app.noteBuddyMessage(buddyID)
+            app.playSound(.received)
             onReply?()
         case .failure(let message):
             activity = nil
