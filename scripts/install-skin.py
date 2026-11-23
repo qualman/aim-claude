@@ -11,7 +11,8 @@ Nothing here is bundled with the app. Name your files to match what the app look
     scripts/install-skin.py ~/Downloads/aim_assets
 
 The three folders are copied as they are, replacing the previous skin. A "<name>-hover"
-image is shown while the pointer is over that button. Anything missing falls back to an
+image is shown while the pointer is over that button. icons/smileys/<face>-19.png fill the
+away message editor's smiley menu. Anything missing falls back to an
 SF Symbol or text; a missing sound doesn't play.
 """
 import os, shutil, sys

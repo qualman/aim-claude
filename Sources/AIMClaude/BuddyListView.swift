@@ -10,6 +10,9 @@ struct BuddyListActions {
     var preferences: () -> Void = {}
     var getInfo: (UUID) -> Void = { _ in }
     var about: () -> Void = {}
+    var newAwayMessage: () -> Void = {}
+    var useAwayMessage: (AwayMessage) -> Void = { _ in }
+    var imBack: () -> Void = {}
 }
 
 struct BuddyListView: View {
@@ -36,6 +39,17 @@ struct BuddyListView: View {
         VStack(spacing: 0) {
             MenuStrip {
                 StripMenu(title: "MyAIM") {
+                    Menu("Away Message") {
+                        ForEach(app.state.savedAwayMessages) { m in
+                            Button(m.label) { actions.useAwayMessage(m) }
+                        }
+                        if !app.state.savedAwayMessages.isEmpty { Divider() }
+                        Button("New Message…", action: actions.newAwayMessage)
+                    }
+                    if app.away != nil {
+                        Button("I'm Back", action: actions.imBack)
+                    }
+                    Divider()
                     Button("Add Buddy…", action: actions.addBuddy)
                     Button("Change Screen Name…", action: actions.changeScreenName)
                     Button("Preferences…", action: actions.preferences)

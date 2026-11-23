@@ -13,6 +13,10 @@ final class WindowManager: NSObject, NSWindowDelegate {
     var chatWindows: [UUID: NSWindow] = [:]
     var attention: Set<UUID> = [] { didSet { refreshBuddyList() } }
     private var dialogs: [NSWindow] = []
+    private var awayEditorWindow: NSWindow?
+    private var awayWindow: NSWindow?
+    /// Chat windows put away by "Hide windows while I'm Away", shown again on I'm Back.
+    private var hiddenChats: Set<UUID> = []
     /// One controller per buddy, kept while the app runs so a turn survives its window closing.
     private(set) var chats: [UUID: ChatController] = [:]
 
@@ -59,7 +63,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
         // Signed off: denied on the spot, so no chat window opens over Sign On.
         guard chatController(for: r.buddyID).addPermission(r) else { return }
         attention.insert(r.buddyID)
-        app.sounds.play(.received)
+        app.playSound(.received)
         openChat(r.buddyID)
         NSApp.requestUserAttention(.informationalRequest)
     }
@@ -128,10 +132,109 @@ final class WindowManager: NSObject, NSWindowDelegate {
             changeScreenName: { [weak self] in self?.changeScreenName() },
             preferences: { [weak self] in self?.showPreferences() },
             getInfo: { [weak self] in self?.showInfo($0) },
-            about: { [weak self] in self?.showAbout() }))
+            about: { [weak self] in self?.showAbout() },
+            newAwayMessage: { [weak self] in self?.showAwayEditor() },
+            useAwayMessage: { [weak self] in self?.goAway($0) },
+            imBack: { [weak self] in self?.comeBack() }))
     }
 
-    private var buddyListTitle: String { "\(app.state.screenName ?? "")'s Buddy List" }
+    private var buddyListTitle: String {
+        "\(app.state.screenName ?? "")'s Buddy List" + (app.away != nil ? " (Away)" : "")
+    }
+
+    // MARK: Away
+
+    func showAwayEditor() {
+        if let w = awayEditorWindow { w.makeKeyAndOrderFront(nil); return }
+        let editor = RichTextController()
+        editor.skin = skin
+        editor.askLink = { [weak self] done in self?.askText("Enter the link address:", symbol: "link", done: done) }
+        var window: NSWindow?
+        let view = AwayEditorView(app: app, editor: editor, onAway: { [weak self] label, keep in
+            // A picture or smiley on its own counts as a message (attachments aren't whitespace).
+            guard editor.textView?.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else { NSSound.beep(); return }
+            let c = editor.contents
+            window?.close()
+            self?.goAway(AwayMessage(label: label, rich: c.rich, text: c.text), save: keep)
+        }, onCancel: { window?.close() })
+        let w = makeWindow(title: "Edit Away Message", resizable: false, view: view)
+        window = w
+        awayEditorWindow = w
+        w.delegate = self
+        w.center()
+        w.makeKeyAndOrderFront(nil)
+        if let tv = editor.textView { w.makeFirstResponder(tv) }
+    }
+
+    func goAway(_ message: AwayMessage, save: Bool = false) {
+        app.goAway(message, save: save)
+        showAwayWindow()
+        if app.away?.hideWindows == true { setChatsHidden(true) }
+        refreshBuddyList()
+    }
+
+    private func showAwayWindow() {
+        guard let away = app.away else { return }
+        let message = RichTextController()
+        // %d / %t show when you went away; the saved message keeps the codes.
+        let shown = NSMutableAttributedString(attributedString: RichTextController.attributed(away.message.rich)
+                                              ?? NSAttributedString(string: away.message.text, attributes: [.font: RichTextController.baseFont]))
+        for code in ["%d", "%t"] {
+            var r = (shown.string as NSString).range(of: code)
+            while r.location != NSNotFound {
+                shown.replaceCharacters(in: r, with: AwayStatus.expand(code, at: away.since))
+                r = (shown.string as NSString).range(of: code)
+            }
+        }
+        message.load(shown.rtfd(from: NSRange(location: 0, length: shown.length), documentAttributes: [:]) ?? Data())
+        let view = AwayWindowView(app: app, message: message,
+                                  onBack: { [weak self] in self?.comeBack() },
+                                  onHideWindows: { [weak self] in self?.setChatsHidden($0) },
+                                  onOpenChat: { [weak self] in self?.openChat($0) })
+        let title = String(AwayStatus.expand(away.message.text, at: away.since).split(whereSeparator: \.isNewline).first ?? "Away").prefix(40)
+        if let w = awayWindow {
+            (w.contentViewController as? NSHostingController<AnyView>)?.rootView = AnyView(view)
+            w.title = String(title)
+            w.makeKeyAndOrderFront(nil)
+            return
+        }
+        let w = makeWindow(title: String(title), resizable: false, view: view)
+        awayWindow = w
+        w.delegate = self
+        w.center()
+        w.makeKeyAndOrderFront(nil)
+    }
+
+    func comeBack() {
+        guard app.away != nil else { return }
+        app.comeBack()
+        setChatsHidden(false)
+        let w = awayWindow
+        awayWindow = nil
+        w?.close()
+        refreshBuddyList()
+    }
+
+    private func setChatsHidden(_ hide: Bool) {
+        if hide {
+            for (id, w) in chatWindows where w.isVisible { w.orderOut(nil); hiddenChats.insert(id) }
+        } else {
+            for id in hiddenChats { chatWindows[id]?.orderFront(nil) }
+            hiddenChats.removeAll()
+        }
+    }
+
+    private func askText(_ prompt: String, symbol: String, done: @escaping (String?) -> Void) {
+        let field = State(initialValue: "")
+        var window: NSWindow?
+        let view = AIMDialog(message: prompt, symbol: symbol, field: field.projectedValue, primary: "OK", secondary: "Cancel",
+                             onPrimary: { window?.close(); done(field.wrappedValue) },
+                             onSecondary: { window?.close(); done(nil) })
+        window = makeWindow(title: "AIM", resizable: false, view: view)
+        dialogs.append(window!)
+        window?.center()
+        window?.makeKeyAndOrderFront(nil)
+    }
 
     func showInfo(_ id: UUID) {
         guard let b = app.buddy(id) else { return }
@@ -149,7 +252,7 @@ final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     func openChat(_ id: UUID) {
-        if let w = chatWindows[id] { w.makeKeyAndOrderFront(nil); return }
+        if let w = chatWindows[id] { hiddenChats.remove(id); w.makeKeyAndOrderFront(nil); return }
         guard let buddy = app.buddy(id) else { return }
         var window: NSWindow?
         let view = ChatView(chat: chatController(for: id), myName: { [weak self] in self?.app.state.screenName ?? "Me" },
@@ -179,7 +282,8 @@ final class WindowManager: NSObject, NSWindowDelegate {
         }
         // AIM popped the IM window open when a message arrived.
         c.onReply = { [weak self] in
-            guard let self, self.app.state.signedOn, self.chatWindows[id] == nil else { return }
+            guard let self, self.app.state.signedOn, self.chatWindows[id] == nil,
+                  self.app.away?.hideWindows != true else { return }
             self.openChat(id)
         }
         chats[id] = c
@@ -244,6 +348,10 @@ final class WindowManager: NSObject, NSWindowDelegate {
         attention.removeAll()
         for w in chatWindows.values { w.close() }
         chatWindows.removeAll()
+        hiddenChats.removeAll()
+        for w in [awayWindow, awayEditorWindow] { w?.close() }
+        awayWindow = nil
+        awayEditorWindow = nil
         app.signOff()
         showSignOn()
     }
@@ -299,7 +407,10 @@ final class WindowManager: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         guard let w = notification.object as? NSWindow else { return }
-        if let id = chatWindows.first(where: { $0.value === w })?.key { chatWindows[id] = nil }
+        if let id = chatWindows.first(where: { $0.value === w })?.key { chatWindows[id] = nil; hiddenChats.remove(id) }
+        if w === awayEditorWindow { awayEditorWindow = nil }
+        // Closing the away window is the same as I'm Back.
+        if w === awayWindow { awayWindow = nil; comeBack() }
         dialogs.removeAll { $0 === w }
     }
 }

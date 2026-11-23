@@ -11,7 +11,14 @@ where every buddy is its own Claude conversation. Pick a screen name, hit
 - When Claude wants to run a tool that isn't already allowed, an Allow/Deny
   prompt pops up in that buddy's chat window. It goes through a small MCP
   server the app hosts on localhost.
-- Buddy list, chats and screen name persist across launches.
+- Away messages: MyAIM → Away Message → New Message… opens AIM's editor, with
+  working bold, italic, underline, size, color, link, picture and smiley buttons.
+  Tick "Save for later use" to keep the message in the Away Message menu and the
+  label dropdown. While you're away your buddies keep working and nothing is sent
+  to Claude. The away window counts the replies that arrive and lists each buddy,
+  how many messages it sent and when it last sent one, sortable by any of those
+  columns. You can also hide chat windows or mute sounds until you click I'm Back.
+- Buddy list, chats, screen name and saved away messages persist across launches.
 
 No Electron and no webview: it's SwiftUI and AppKit built with Swift Package
 Manager.
@@ -109,7 +116,11 @@ Any button icon can also have two optional variants:
 | `get-info` | Chat window: Get Info button |
 | `send` | Chat window: Send button |
 
-The formatting bar is decorative, because Claude reads plain text.
+In the IM window the formatting bar is decorative, because Claude reads plain text. In the
+away message editor it works.
+
+Smileys for the editor's smiley button come from `icons/smileys/<face>-19.png`, for
+example `smile-19.png` or `wink-19.png`. Without them, the button offers emoji.
 
 ### Sounds (`sounds/`)
 

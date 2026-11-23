@@ -45,13 +45,30 @@ public struct AppState: Codable, Equatable, Sendable {
     public var buddies: [Buddy]
     public var signedOn: Bool
     public var claudePathOverride: String?
+    /// Away messages kept with "Save for later use", newest last.
+    public var savedAwayMessages: [AwayMessage]
 
     public init(screenName: String? = nil, buddies: [Buddy] = [], signedOn: Bool = false,
-                claudePathOverride: String? = nil) {
+                claudePathOverride: String? = nil, savedAwayMessages: [AwayMessage] = []) {
         self.screenName = screenName
         self.buddies = buddies
         self.signedOn = signedOn
         self.claudePathOverride = claudePathOverride
+        self.savedAwayMessages = savedAwayMessages
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case screenName, buddies, signedOn, claudePathOverride, savedAwayMessages
+    }
+
+    /// Files saved before a field existed still load; the field takes its default.
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        screenName = try c.decodeIfPresent(String.self, forKey: .screenName)
+        buddies = try c.decode([Buddy].self, forKey: .buddies)
+        signedOn = try c.decode(Bool.self, forKey: .signedOn)
+        claudePathOverride = try c.decodeIfPresent(String.self, forKey: .claudePathOverride)
+        savedAwayMessages = try c.decodeIfPresent([AwayMessage].self, forKey: .savedAwayMessages) ?? []
     }
 
     /// A turn that was in flight when the app quit is never resent; it's marked instead.

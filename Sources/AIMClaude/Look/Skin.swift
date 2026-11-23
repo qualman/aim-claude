@@ -159,9 +159,16 @@ struct StripMenu<Items: View>: View {
 /// White box with a check, drawn like Win98 rather than a macOS checkbox.
 struct AIMCheckbox: View {
     let title: String
-    private let on = State(initialValue: false)
+    private let local = State(initialValue: false)
+    private let bound: Binding<Bool>?
 
-    init(_ title: String) { self.title = title }
+    /// Without a binding the box keeps its own (unused) state, as on the Sign On window.
+    init(_ title: String, isOn: Binding<Bool>? = nil) {
+        self.title = title
+        self.bound = isOn
+    }
+
+    private var on: Binding<Bool> { bound ?? local.projectedValue }
 
     var body: some View {
         Button { on.wrappedValue.toggle() } label: {

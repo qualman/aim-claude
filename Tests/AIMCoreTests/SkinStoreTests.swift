@@ -29,6 +29,14 @@ import Testing
         }
     }
 
+    @Test func smileysAreTheLineSizedFacesSortedByName() throws {
+        let d = try dir()
+        let sm = d.appendingPathComponent("icons/smileys")
+        try FileManager.default.createDirectory(at: sm, withIntermediateDirectories: true)
+        for f in ["wink-19.png", "smile-19.png", "smile-36.png", "frown-12.png"] { try Data([1]).write(to: sm.appendingPathComponent(f)) }
+        #expect(SkinStore(directory: d).smileys().map(\.name) == ["smile", "wink"])
+    }
+
     @Test func cueFileNames() {
         #expect(SoundCue.allCases.map(\.fileName) == ["buddy-in", "buddy-out", "received", "sent"])
     }

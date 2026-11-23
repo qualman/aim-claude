@@ -29,6 +29,7 @@ enum MainMenu {
         let my = NSMenu(title: "My AIM")
         item(my, "Add Buddy…", #selector(AppDelegate.addBuddy(_:)), "n", target)
         item(my, "Change Screen Name…", #selector(AppDelegate.changeScreenName(_:)), "", target)
+        item(my, "New Away Message…", #selector(AppDelegate.newAwayMessage(_:)), "", target)
         my.addItem(.separator())
         item(my, "Sign Off", #selector(AppDelegate.signOff(_:)), "", target)
         add(my, title: "My AIM", to: main)
